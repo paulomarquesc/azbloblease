@@ -13,8 +13,6 @@ import (
 	"log"
 	"strings"
 
-	"github.com/Azure/go-autorest/autorest/to"
-	"github.com/paulomarquesc/azbloblease/azbloblease/internal/config"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/models"
 )
 
@@ -50,23 +48,8 @@ func FindInSlice(slice []string, val string) (int, bool) {
 	return -1, false
 }
 
-// BuildResult returns the json formatted result
-func BuildResult(operation, leaseID string, err error) string {
-	status := config.Success()
-	var errorMessage string
-	if err != nil {
-		errorMessage = err.Error()
-		status = config.Fail()
-	}
-
-	response := models.ResponseInfo{
-		Operation:    to.StringPtr(operation),
-		LeaseID:      to.StringPtr(leaseID),
-		Status:       to.StringPtr(status),
-		ErrorMessage: to.StringPtr(errorMessage),
-	}
-
-	responseJSON, _ := json.MarshalIndent(response, "", "    ")
-
+// BuildResultResponse returns the json formatted result
+func BuildResultResponse(result models.ResponseInfo) string {
+	responseJSON, _ := json.MarshalIndent(result, "", "    ")
 	return strings.Replace(string(responseJSON), "\"\"", "null", -1)
 }

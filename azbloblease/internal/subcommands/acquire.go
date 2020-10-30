@@ -15,24 +15,35 @@ import (
 	"net/url"
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
+	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/google/uuid"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/common"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/config"
+	"github.com/paulomarquesc/azbloblease/azbloblease/internal/models"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/utils"
 )
 
 // AcquireLease - acquires an Azure blob storage lease
-func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accountName, container string, leaseDuration int) (string, error) {
+func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accountName, container, blobName string, leaseDuration int) models.ResponseInfo {
 
 	//-------------------------------------
 	// Operations based on storage mgmt sdk
 	//-------------------------------------
+	response := models.ResponseInfo{
+		SubscriptionID:     &subscriptionID,
+		ResourceGroupName:  &resourceGroupName,
+		StorageAccountName: &accountName,
+		ContainerName:      &container,
+		BlobName:           &blobName,
+		Status:             to.StringPtr(config.Fail()),
+	}
 
 	// Getting storage client
 	storageAccountMgmtClient, err := common.GetStorageAccountsClient(subscriptionID)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining storage client/authorizer: %v.", err), config.Stderr())
-		return "", err
+		response.ErrorMessage = to.StringPtr(err.Error())
+		return response
 	}
 
 	// Getting Storage Account Key
@@ -44,7 +55,8 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 	)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while executing GetAccountKey: %v.", err), config.Stderr())
-		return "", err
+		response.ErrorMessage = to.StringPtr(err.Error())
+		return response
 	}
 
 	//-----------------------------------
@@ -55,7 +67,8 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 	credential, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining azblob credential: %v.", err), config.Stderr())
-		return "", err
+		response.ErrorMessage = to.StringPtr(err.Error())
+		return response
 	}
 
 	// Creating azblob request pipeline
@@ -67,7 +80,8 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining blob endpoint: %v.", err), config.Stderr())
-		return "", err
+		response.ErrorMessage = to.StringPtr(err.Error())
+		return response
 	}
 
 	// Create an ServiceURL object that wraps the service URL and a request pipeline.
@@ -95,9 +109,11 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while acquiring lease: %v.", err), config.Stderr())
-		return "", err
+		response.ErrorMessage = to.StringPtr(err.Error())
+		return response
 	}
 
-	return leaseResponse.LeaseID(), nil
-
+	response.Status = to.StringPtr(config.Success())
+	response.LeaseID = to.StringPtr(leaseResponse.LeaseID())
+	return response
 }

@@ -351,3 +351,5 @@ MigrationBackup/
 
 # /**/sample
 # *.sh
+
+.vscode

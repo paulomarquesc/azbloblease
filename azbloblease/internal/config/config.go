@@ -12,10 +12,12 @@ import (
 
 // Constants
 const (
-	version  = "0.1.0"
-	blobName = "azblobleaseblob"
-	success  = "Success"
-	fail     = "Fail"
+	version              = "0.1.0"
+	blobName             = "azblobleaseblob"
+	success              = "Success"
+	fail                 = "Fail"
+	successAlreadyExists = "SuccessAlreadyExists"
+	successRenew         = "SuccessOnRenew"
 )
 
 // Variables locally and globally scoped
@@ -82,6 +84,16 @@ func BlobName() string {
 // Success returns success string
 func Success() string {
 	return success
+}
+
+// SuccessAlreadyExists returns success already exists string
+func SuccessAlreadyExists() string {
+	return successAlreadyExists
+}
+
+// SuccessOnRenew returns success status code on succeeding renewal process
+func SuccessOnRenew() string {
+	return successRenew
 }
 
 // Fail returns fail string

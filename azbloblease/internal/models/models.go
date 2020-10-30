@@ -7,8 +7,13 @@ package models
 
 // ResponseInfo object definition
 type ResponseInfo struct {
-	Operation    *string `json:"operation"`
-	LeaseID      *string `json:"leaseId"`
-	Status       *string `json:"status"`
-	ErrorMessage *string `json:"errorMessage"`
+	SubscriptionID     *string `json:"subscriptionId"`
+	ResourceGroupName  *string `json:"resourceGroupName"`
+	StorageAccountName *string `json:"storageAccountName"`
+	ContainerName      *string `json:"containerName"`
+	BlobName           *string `json:"blobName"`
+	Operation          *string `json:"operation"`
+	LeaseID            *string `json:"leaseId"`
+	Status             *string `json:"status"`
+	ErrorMessage       *string `json:"errorMessage"`
 }
