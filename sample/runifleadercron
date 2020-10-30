@@ -1,0 +1,53 @@
+#!/bin/bash
+
+
+# Variables
+RESOURCEGROUP_NAME="<storage resource group>"
+ACCOUNT_NAME="<storage acount name>"
+CONTAINER_NAME="azbloblease"
+LEASE_DURATION=60
+SUBSCRIPTION_ID="<subid>"
+RENEW_ITERATIONS=120
+RENEW_ITEARAION_WAIT_TIME=30
+
+EV2_COMMON_FOLDER="/var/lib/AzureNetapp-Ev2-Common"
+
+# Functions
+function log()
+{
+    local MESSAGE=${1}
+    echo "$(echo $(date +"%D %T %Z")) - ${MESSAGE}" >> $EV2_COMMON_FOLDER/runifleader.log
+}
+
+# Try to acquire lease and become leader
+RESULT=$($EV2_COMMON_FOLDER/azbloblease acquire \
+    -accountname $ACCOUNT_NAME \
+    -container $CONTAINER_NAME \
+    -leaseduration $LEASE_DURATION \
+    -resourcegroupname $RESOURCEGROUP_NAME \
+    -subscriptionid $SUBSCRIPTION_ID 2>/dev/null)
+
+LEASE_ID=$(echo $RESULT | jq -r ".leaseId")
+log "LEASE_ID: ${LEASE_ID}" 
+
+if [[ "${LEASE_ID}" != null ]]; then
+    # Running background process to keep leader role - 1 hr 1min
+    $EV2_COMMON_FOLDER/azbloblease renew \
+        -accountname $ACCOUNT_NAME \
+        -container $CONTAINER_NAME \
+        -leaseid $LEASE_ID \
+        -resourcegroupname $RESOURCEGROUP_NAME \
+        -subscriptionid $SUBSCRIPTION_ID \
+        -iterations $RENEW_ITERATIONS \
+        -waittimesec $RENEW_ITEARAION_WAIT_TIME 2>/dev/null &
+
+    # Real work as leader
+    log "I'm the leader, doing stuff..." 
+    # Waiting random time up to 1 hour
+    sleep $(( 1 + RANDOM % 3600 ))
+    log "End of stuff..."
+else
+    log "Could not obtain lease, therefore not being leader, exting"
+fi
+
+log "End of script"

@@ -216,7 +216,7 @@ _pkginfo.txt
 # Visual Studio cache files
 # files ending in .cache can be ignored
 *.[Cc]ache
-# but keep track of directories ending in .cache
+# but renew track of directories ending in .cache
 !?*.[Cc]ache/
 
 # Others
@@ -348,3 +348,6 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+
+# /**/sample
+# *.sh
