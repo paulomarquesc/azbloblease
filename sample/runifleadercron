@@ -43,9 +43,8 @@ if [[ "${LEASE_ID}" != null ]]; then
     # Real work as leader
     log "I'm the leader, doing stuff..." 
     
-    # Waiting random time up to 1 hour
-    sleep $(( 1 + RANDOM % 3600 ))
-    log "End of stuff..."
+    # Waiting random time up to 30 minutes
+    sleep $(( 1 + RANDOM % 1800 ))
 else
     log "Could not obtain lease, therefore not being leader, exting"
 fi
