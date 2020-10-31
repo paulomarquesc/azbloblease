@@ -27,8 +27,6 @@ RESULT=$($EV2_COMMON_FOLDER/azbloblease acquire \
     -subscriptionid $SUBSCRIPTION_ID 2>/dev/null)
 
 LEASE_ID=$(echo $RESULT | jq -r ".leaseId")
-log "LEASE_ID: ${LEASE_ID}" 
-
 if [[ "${LEASE_ID}" != null ]]; then
     # Running background process to keep leader role - 1 hr 1min
     $EV2_COMMON_FOLDER/azbloblease renew \
@@ -41,7 +39,7 @@ if [[ "${LEASE_ID}" != null ]]; then
         -waittimesec $RENEW_ITEARAION_WAIT_TIME 2>/dev/null &
 
     # Real work as leader
-    log "I'm the leader, doing stuff..." 
+    log "I'm the leader (LEASID: ${LEASE_ID}), doing stuff..." 
     
     # Waiting random time up to 30 minutes
     sleep $(( 1 + RANDOM % 1800 ))
