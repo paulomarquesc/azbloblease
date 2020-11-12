@@ -93,7 +93,7 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 
 	// Create a URL that references the blob used to acquire the lock
 	// This returns a BlockBlobURL object that wraps the blob's URL and a request pipeline (inherited from containerURL)
-	blobURL := containerURL.NewBlockBlobURL(config.BlobName())
+	blobURL := containerURL.NewBlockBlobURL(blobName)
 
 	// AcquireLease
 
