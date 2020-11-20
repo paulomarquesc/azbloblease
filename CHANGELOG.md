@@ -1,9 +1,11 @@
-# [azbloblease tool] Changelog
+# [azbloblease] Changelog
 
-<a name="2020-11-20"></a>
-<a name="2020-10-01"></a>
+**In this document**
 
-## 1.0.1 (2020-11-20)
+* [1.0.1](#1.0.1)
+* [1.0.0](#1.0.0)
+
+## 1.0.1 (2020-11-20)<a name="1.0.1"></a>
 *Features*
 * Implemented two two new optional arguments on **acquire** operation, **retries** and **waittimesec**.
 
@@ -13,7 +15,7 @@
 *Breaking Changes*
 * N/A
 
-## 1.0.0 (2020-10-01)
+## 1.0.0 (2020-10-01)<a name="1.0.0"></a>
 *Features*
 * Initial version
 
