@@ -12,7 +12,7 @@ import (
 
 // Constants
 const (
-	version              = "1.0.0"
+	version              = "1.0.1"
 	blobName             = "azblobleaseblob"
 	success              = "Success"
 	fail                 = "Fail"
@@ -38,7 +38,9 @@ var (
 		"ErrInvalidArgumentMissingSubscriptionID":    160, // Missing subscription ID
 		"ErrAuthorizer":                              300, // Error code related to issues getting authorizer
 		"ErrInvalidArgumentIterationsCount":          500, // Iterations cannot be less then 1
-		"ErrInvalidArgumentWaitTime":                 501, // Invalid wait time between renew iteration, valid values are between 1 and 59
+		"ErrInvalidArgumentRetryCount":               510, // Retry count on acquire cannot be less then 1
+		"ErrInvalidArgumentWaitTime":                 520, // Invalid wait time between renew iteration, valid values are between 1 and 59 seconds
+		"ErrInvalidArgumentWaitTimeAcquire":          530, // Invalid wait time between acquire retry attempt, valid values are between 0 and 59 seconds
 	}
 )
 

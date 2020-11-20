@@ -13,6 +13,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
 	"github.com/Azure/go-autorest/autorest/to"
@@ -24,7 +25,7 @@ import (
 )
 
 // AcquireLease - acquires an Azure blob storage lease
-func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accountName, container, blobName string, leaseDuration int) models.ResponseInfo {
+func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accountName, container, blobName string, leaseDuration, retries, waittimesec int) models.ResponseInfo {
 
 	//-------------------------------------
 	// Operations based on storage mgmt sdk
@@ -99,21 +100,29 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 
 	// Generating LeaseID
 	proposedLeaseID := uuid.New()
+	for i := 0; i < retries; i++ {
+		_, err := blobURL.AcquireLease(
+			cntx,
+			proposedLeaseID.String(),
+			int32(leaseDuration),
+			azblob.ModifiedAccessConditions{},
+		)
 
-	leaseResponse, err := blobURL.AcquireLease(
-		cntx,
-		proposedLeaseID.String(),
-		int32(leaseDuration),
-		azblob.ModifiedAccessConditions{},
-	)
+		if err != nil {
+			utils.ConsoleOutput(fmt.Sprintf("an error ocurred while acquiring lease: %v.", err), config.Stderr())
+			response.ErrorMessage = to.StringPtr(err.Error())
+		} else {
+			response.ErrorMessage = nil
+			break
+		}
 
-	if err != nil {
-		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while acquiring lease: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(err.Error())
-		return response
+		time.Sleep(time.Duration(waittimesec) * time.Second)
 	}
 
-	response.Status = to.StringPtr(config.Success())
-	response.LeaseID = to.StringPtr(leaseResponse.LeaseID())
+	if response.ErrorMessage == nil {
+		response.Status = to.StringPtr(config.Success())
+		response.LeaseID = to.StringPtr(proposedLeaseID.String())
+	}
+
 	return response
 }
