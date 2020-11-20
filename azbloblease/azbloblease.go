@@ -58,6 +58,7 @@ func main() {
 	createLeaseBlobCommand := flag.NewFlagSet("createleaseblob", flag.ExitOnError)
 	acquireCommand := flag.NewFlagSet("acquire", flag.ExitOnError)
 	renewCommand := flag.NewFlagSet("renew", flag.ExitOnError)
+	// TODO: Implement release command
 
 	// CreateLeaseBlob subcommand flag pointers
 	createLeaseBlobSubscriptionIDPtr := createLeaseBlobCommand.String("subscriptionid", "", "Subscription where the Storage Account is located")
@@ -73,6 +74,8 @@ func main() {
 	acquireBlobContainerPtr := acquireCommand.String("container", "", "Blob container name")
 	acquireBlobNamePtr := acquireCommand.String("blobname", config.BlobName(), "Blob name")
 	acquireLeaseDurationPtr := acquireCommand.Int("leaseduration", 60, "Lease duration in seconds, valid values are between 15 and 60, -1 is not supported in this tool")
+	acquireRetriesPtr := acquireCommand.Int("retries", 1, "Lease acquire operation, number of retry attempts")
+	acquireWaitTimeSecPtr := acquireCommand.Int("waittimesec", 0, "Time in seconds between iterations to renew current lease, must be between 1 and 59 seconds, ideally half of the time used when acquiring lease")
 
 	// Renew subcommand flag pointers
 	renewSubscriptionIDPtr := renewCommand.String("subscriptionid", "", "Subscription where the Storage Account is located")
@@ -81,7 +84,7 @@ func main() {
 	renewBlobContainerPtr := renewCommand.String("container", "", "Blob container name")
 	renewBlobNamePtr := renewCommand.String("blobname", config.BlobName(), "Blob name")
 	renewLeaseIDPtr := renewCommand.String("leaseid", "", "GUID value that represents the acquired lease")
-	renewIterationsPtr := renewCommand.Int("iterations", 20, "Lease acquire operation number of retry attempts")
+	renewIterationsPtr := renewCommand.Int("iterations", 20, "Lease renew, number of times it will repeat renew operation")
 	renewWaitTimeSecPtr := renewCommand.Int("waittimesec", 30, "Time in seconds between iterations to renew current lease, must be between 1 and 59 seconds, ideally half of the time used when acquiring lease")
 
 	flag.Parse()
@@ -262,6 +265,19 @@ func main() {
 			return
 		}
 
+		if *acquireRetriesPtr < 1 {
+			fmt.Println(acquireCommand.Name())
+			acquireCommand.PrintDefaults()
+			exitCode = config.ErrorCode("ErrInvalidArgumentRetryCount")
+			return
+		}
+
+		if *acquireWaitTimeSecPtr < 0 || *acquireWaitTimeSecPtr > 59 {
+			fmt.Println(acquireCommand.Name())
+			acquireCommand.PrintDefaults()
+			exitCode = config.ErrorCode("ErrInvalidArgumentWaitTimeAcquire")
+			return
+		}
 		// Run acquire
 		acquireResult := subcommands.AcquireLease(
 			cntx,
@@ -271,6 +287,8 @@ func main() {
 			strings.ToLower(*acquireBlobContainerPtr),
 			*acquireBlobNamePtr,
 			*acquireLeaseDurationPtr,
+			*acquireRetriesPtr,
+			*acquireWaitTimeSecPtr,
 		)
 
 		// Outputs json result in stdout
@@ -294,7 +312,7 @@ func main() {
 
 		if *renewResourceGroupNamePtr == "" {
 			fmt.Println(renewCommand.Name())
-			acquireCommand.PrintDefaults()
+			renewCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingResourceGroupName")
 			return
 		}
@@ -308,28 +326,28 @@ func main() {
 
 		if *renewBlobContainerPtr == "" {
 			fmt.Println(renewCommand.Name())
-			acquireCommand.PrintDefaults()
+			renewCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingContainer")
 			return
 		}
 
 		if *renewLeaseIDPtr == "" {
 			fmt.Println(renewCommand.Name())
-			acquireCommand.PrintDefaults()
+			renewCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingLeaseID")
 			return
 		}
 
 		if *renewIterationsPtr < 1 {
 			fmt.Println(renewCommand.Name())
-			acquireCommand.PrintDefaults()
+			renewCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentIterationsCount")
 			return
 		}
 
 		if *renewWaitTimeSecPtr < 1 || *renewWaitTimeSecPtr > 59 {
 			fmt.Println(renewCommand.Name())
-			acquireCommand.PrintDefaults()
+			renewCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentWaitTime")
 			return
 		}
