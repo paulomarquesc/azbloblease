@@ -66,6 +66,7 @@ func main() {
 	createLeaseBlobAccountNamePtr := createLeaseBlobCommand.String("accountname", "", "Storage Account Name")
 	createLeaseBlobBlobContainerPtr := createLeaseBlobCommand.String("container", "", "Blob container name")
 	createLeaseBlobBlobBlobNamePtr := createLeaseBlobCommand.String("blobname", config.BlobName(), "Blob name")
+	createLeaseBlobEnvironmentPtr := createLeaseBlobCommand.String("environment", "AZUREPUBLICCLOUD", fmt.Sprintf("Azure cloud type, currently supported ones are: %v", config.ValidEnvironments()))
 
 	// Acquire subcommand flag pointers
 	acquireSubscriptionIDPtr := acquireCommand.String("subscriptionid", "", "Subscription where the Storage Account is located")
@@ -76,6 +77,7 @@ func main() {
 	acquireLeaseDurationPtr := acquireCommand.Int("leaseduration", 60, "Lease duration in seconds, valid values are between 15 and 60, -1 is not supported in this tool")
 	acquireRetriesPtr := acquireCommand.Int("retries", 1, "Lease acquire operation, number of retry attempts")
 	acquireWaitTimeSecPtr := acquireCommand.Int("waittimesec", 0, "Time in seconds between iterations to renew current lease, must be between 1 and 59 seconds, ideally half of the time used when acquiring lease")
+	acquireEnvironmentPtr := acquireCommand.String("environment", "AZUREPUBLICCLOUD", fmt.Sprintf("Azure cloud type, currently supported ones are: %v", config.ValidEnvironments()))
 
 	// Renew subcommand flag pointers
 	renewSubscriptionIDPtr := renewCommand.String("subscriptionid", "", "Subscription where the Storage Account is located")
@@ -86,6 +88,7 @@ func main() {
 	renewLeaseIDPtr := renewCommand.String("leaseid", "", "GUID value that represents the acquired lease")
 	renewIterationsPtr := renewCommand.Int("iterations", 20, "Lease renew, number of times it will repeat renew operation")
 	renewWaitTimeSecPtr := renewCommand.Int("waittimesec", 30, "Time in seconds between iterations to renew current lease, must be between 1 and 59 seconds, ideally half of the time used when acquiring lease")
+	renewEnvironmentPtr := renewCommand.String("environment", "AZUREPUBLICCLOUD", fmt.Sprintf("Azure cloud type, currently supported ones are: %v", config.ValidEnvironments()))
 
 	flag.Parse()
 
@@ -208,6 +211,17 @@ func main() {
 			return
 		}
 
+		if strings.ToUpper(*createLeaseBlobEnvironmentPtr) != "AZUREPUBLICCLOUD" {
+			// Checks if valid cloud environment was passed
+			_, found := utils.FindInSlice(config.ValidEnvironments(), strings.ToUpper(*createLeaseBlobEnvironmentPtr))
+			if !found {
+				fmt.Println(createLeaseBlobCommand.Name())
+				createLeaseBlobCommand.PrintDefaults()
+				exitCode = config.ErrorCode("ErrInvalidCloudType")
+				return
+			}
+		}
+
 		// Run createLeaseBlob
 		createLeaseBlobResult := subcommands.CreateLeaseBlob(
 			cntx,
@@ -216,6 +230,7 @@ func main() {
 			*createLeaseBlobAccountNamePtr,
 			strings.ToLower(*createLeaseBlobBlobContainerPtr),
 			*createLeaseBlobBlobBlobNamePtr,
+			strings.ToUpper(*createLeaseBlobEnvironmentPtr),
 		)
 
 		// Outputs json result in stdout
@@ -278,6 +293,18 @@ func main() {
 			exitCode = config.ErrorCode("ErrInvalidArgumentWaitTimeAcquire")
 			return
 		}
+
+		if strings.ToUpper(*acquireEnvironmentPtr) != "AZUREPUBLICCLOUD" {
+			// Checks if valid cloud environment was passed
+			_, found := utils.FindInSlice(config.ValidEnvironments(), strings.ToUpper(*acquireEnvironmentPtr))
+			if !found {
+				fmt.Println(acquireCommand.Name())
+				acquireCommand.PrintDefaults()
+				exitCode = config.ErrorCode("ErrInvalidCloudType")
+				return
+			}
+		}
+
 		// Run acquire
 		acquireResult := subcommands.AcquireLease(
 			cntx,
@@ -286,6 +313,7 @@ func main() {
 			*acquireAccountNamePtr,
 			strings.ToLower(*acquireBlobContainerPtr),
 			*acquireBlobNamePtr,
+			strings.ToUpper(*acquireEnvironmentPtr),
 			*acquireLeaseDurationPtr,
 			*acquireRetriesPtr,
 			*acquireWaitTimeSecPtr,
@@ -352,6 +380,17 @@ func main() {
 			return
 		}
 
+		if strings.ToUpper(*renewEnvironmentPtr) != "AZUREPUBLICCLOUD" {
+			// Checks if valid cloud environment was passed
+			_, found := utils.FindInSlice(config.ValidEnvironments(), strings.ToUpper(*renewEnvironmentPtr))
+			if !found {
+				fmt.Println(renewCommand.Name())
+				renewCommand.PrintDefaults()
+				exitCode = config.ErrorCode("ErrInvalidCloudType")
+				return
+			}
+		}
+
 		// Run renew
 		renewResult := subcommands.RenewLease(
 			cntx,
@@ -361,6 +400,7 @@ func main() {
 			strings.ToLower(*renewBlobContainerPtr),
 			*renewBlobNamePtr,
 			*renewLeaseIDPtr,
+			strings.ToUpper(*renewEnvironmentPtr),
 			*renewIterationsPtr,
 			*renewWaitTimeSecPtr,
 		)

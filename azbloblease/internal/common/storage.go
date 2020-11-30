@@ -12,6 +12,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2019-06-01/storage"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/config"
@@ -19,9 +20,18 @@ import (
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/utils"
 )
 
-// GetStorageAccountsClient - returns an storage account client
-func GetStorageAccountsClient(subscriptionID string) (storage.AccountsClient, error) {
-	storageAccountsClient := storage.NewAccountsClient(subscriptionID)
+// GetStorageAccountsClientWithBaseURI - returns an storage account client by using a base URI, for a custom endpoint,
+// Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
+func GetStorageAccountsClientWithBaseURI(baseUri, subscriptionID, environment string) (storage.AccountsClient, error) {
+
+	// Setting Azure cloud type as OS variable
+	os.Setenv("AZURE_ENVIRONMENT", environment)
+
+	storageAccountsClient := storage.NewAccountsClientWithBaseURI(baseUri, subscriptionID)
+
+	utils.ConsoleOutput(fmt.Sprintf("environment: %v.", environment), config.Stdout())
+
+	// Getting authorizer
 	auth, err := iam.GetAuthorizer()
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining authorizer: %v.", err), config.Stderr())

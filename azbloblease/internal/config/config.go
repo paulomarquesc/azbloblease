@@ -12,7 +12,7 @@ import (
 
 // Constants
 const (
-	version              = "1.0.1"
+	version              = "1.0.2"
 	blobName             = "azblobleaseblob"
 	success              = "Success"
 	fail                 = "Fail"
@@ -22,10 +22,11 @@ const (
 
 // Variables locally and globally scoped
 var (
-	userAgent  = "azblobleaseclient"                   // UserAgent - add identification to clients
-	stdout     = log.New(os.Stdout, "", log.LstdFlags) // Stdout - standard stream output for logs
-	stdoutJSON = log.New(os.Stdout, "", 0)             // stdoutJSON - standard output without adding prefixes
-	stderr     = log.New(os.Stderr, "", log.LstdFlags) // StdErr - Error stream output for logs
+	userAgent         = "azblobleaseclient"                                                                           // UserAgent - add identification to clients
+	stdout            = log.New(os.Stdout, "", log.LstdFlags)                                                         // Stdout - standard stream output for logs
+	stdoutJSON        = log.New(os.Stdout, "", 0)                                                                     // stdoutJSON - standard output without adding prefixes
+	stderr            = log.New(os.Stderr, "", log.LstdFlags)                                                         // StdErr - Error stream output for logs
+	validEnvironments = []string{"AZUREPUBLICCLOUD", "AZUREUSGOVERNMENTCLOUD", "AZUREGERMANCLOUD", "AZURECHINACLOUD"} // validEnvironments supported Azure cloud types
 
 	errorCodes = map[string]int{
 		"InvalidErrorCode":                           10,  // Used when an error name passed to GetErrorCode is invalid
@@ -36,6 +37,7 @@ var (
 		"ErrInvalidArgumentInvalidLeaseDuration":     140, // Invalid Lease Duration (needs to be between 15-60)
 		"ErrInvalidArgumentMissingLeaseID":           150, // Missing lease ID
 		"ErrInvalidArgumentMissingSubscriptionID":    160, // Missing subscription ID
+		"ErrInvalidCloudType":                        170, // An invalid cloud type was passed
 		"ErrAuthorizer":                              300, // Error code related to issues getting authorizer
 		"ErrInvalidArgumentIterationsCount":          500, // Iterations cannot be less then 1
 		"ErrInvalidArgumentRetryCount":               510, // Retry count on acquire cannot be less then 1
@@ -76,6 +78,11 @@ func StdoutJSON() *log.Logger {
 // Version returns current utility version
 func Version() string {
 	return version
+}
+
+// ValidEnvironments returns currently supported Azure Cloud types
+func ValidEnvironments() []string {
+	return validEnvironments
 }
 
 // BlobName returns the blob name to be used when acquiring lease

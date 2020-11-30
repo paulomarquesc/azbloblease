@@ -26,7 +26,7 @@ import (
 )
 
 // CreateLeaseBlob - creates a blob to be used for storage lease process
-func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, accountName, container, blobName string) models.ResponseInfo {
+func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, accountName, container, blobName, environment string) models.ResponseInfo {
 
 	//-------------------------------------
 	// Operations based on storage mgmt sdk
@@ -40,8 +40,11 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 		Status:             to.StringPtr(config.Fail()),
 	}
 
+	// Getting AutoRest Environment object
+	envInfo := utils.Environment(environment)
+
 	// Getting storage client
-	storageAccountMgmtClient, err := common.GetStorageAccountsClient(subscriptionID)
+	storageAccountMgmtClient, err := common.GetStorageAccountsClientWithBaseURI(envInfo.ResourceManagerEndpoint, subscriptionID, environment)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining storage client/authorizer: %v.", err), config.Stderr())
 		response.ErrorMessage = to.StringPtr(err.Error())

@@ -13,6 +13,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/models"
 )
 
@@ -52,4 +53,16 @@ func FindInSlice(slice []string, val string) (int, bool) {
 func BuildResultResponse(result models.ResponseInfo) string {
 	responseJSON, _ := json.MarshalIndent(result, "", "    ")
 	return strings.Replace(string(responseJSON), "\"\"", "null", -1)
+}
+
+// Environment returns an `azure.Environment{...}` for the current cloud.
+func Environment(CloudType string) *azure.Environment {
+
+	env, err := azure.EnvironmentFromName(CloudType)
+	if err != nil {
+		panic(fmt.Sprintf(
+			"invalid cloud name '%s' specified, cannot continue\n", CloudType))
+	}
+
+	return &env
 }

@@ -24,7 +24,7 @@ import (
 )
 
 // RenewLease - attempts to renew an Azure blob storage lease
-func RenewLease(cntx context.Context, subscriptionID, resourceGroupName, accountName, container, blobName, leaseID string, iterations, waittimesec int) models.ResponseInfo {
+func RenewLease(cntx context.Context, subscriptionID, resourceGroupName, accountName, container, blobName, leaseID, environment string, iterations, waittimesec int) models.ResponseInfo {
 
 	//-------------------------------------
 	// Operations based on storage mgmt sdk
@@ -38,8 +38,12 @@ func RenewLease(cntx context.Context, subscriptionID, resourceGroupName, account
 		Status:             to.StringPtr(config.Fail()),
 	}
 
+	// Getting AutoRest Environment object
+	envInfo := utils.Environment(environment)
+
 	// Getting storage client
-	storageAccountMgmtClient, err := common.GetStorageAccountsClient(subscriptionID)
+	storageAccountMgmtClient, err := common.GetStorageAccountsClientWithBaseURI(envInfo.ResourceManagerEndpoint, subscriptionID, environment)
+
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining storage client/authorizer: %v.", err), config.Stderr())
 		response.ErrorMessage = to.StringPtr(err.Error())
