@@ -7,7 +7,7 @@ CONTAINER_NAME="azbloblease"
 LEASE_DURATION=60
 SUBSCRIPTION_ID="<subid>"
 RENEW_ITERATIONS=60
-RENEW_ITEARAION_WAIT_TIME=30
+RENEW_ITERATION_WAIT_TIME=30
 
 EV2_COMMON_FOLDER="/var/lib/AzureNetapp-Ev2-Common"
 
@@ -36,7 +36,7 @@ if [[ "${LEASE_ID}" != null ]]; then
         -resourcegroupname $RESOURCEGROUP_NAME \
         -subscriptionid $SUBSCRIPTION_ID \
         -iterations $RENEW_ITERATIONS \
-        -waittimesec $RENEW_ITEARAION_WAIT_TIME 2>/dev/null &
+        -waittimesec $RENEW_ITERATION_WAIT_TIME 2>/dev/null &
 
     # Real work as leader
     log "I'm the leader (LEASID: ${LEASE_ID}), doing stuff..." 
