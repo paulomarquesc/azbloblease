@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Variables
-RESOURCEGROUP_NAME="<storage resource group>"
-ACCOUNT_NAME="<storage acount name>"
+RESOURCEGROUP_NAME="Support-rg"
+ACCOUNT_NAME="pmcstorage05"
 CONTAINER_NAME="azbloblease"
 LEASE_DURATION=60
-SUBSCRIPTION_ID="<subid>"
+SUBSCRIPTION_ID="66bc9830-19b6-4987-94d2-0e487be7aa47"
 RENEW_ITERATIONS=60
 RENEW_ITERATION_WAIT_TIME=30
 
@@ -13,13 +13,23 @@ RENEW_ITERATION_WAIT_TIME=30
 function log()
 {
     local MESSAGE=${1}
-    echo "$(echo $(date +"%D %T %Z")) - ${MESSAGE}" >> ./runifleader.log
+    echo "$(echo $(date +"%D %T %Z")) - ${MESSAGE}" >> ./${0}.log
 }
+
+# Create container and blob to lease
+BLOB_CONTAINER_NAME=$(hostname)
+../azbloblease/azbloblease createleaseblob \
+    -accountname "${ACCOUNT_NAME}" \
+    -container "${BLOB_CONTAINER_NAME,,}" \
+    -blobname "${BLOB_CONTAINER_NAME}" \
+    -resourcegroupname "${RESOURCEGROUP_NAME}" \
+    -subscriptionid "${SUBSCRIPTION_ID}"
 
 # Try to acquire lease and become leader
 RESULT=$(../azbloblease/azbloblease acquire \
     -accountname $ACCOUNT_NAME \
-    -container $CONTAINER_NAME \
+    -container ${BLOB_CONTAINER_NAME,,} \
+    -blobname $BLOB_CONTAINER_NAME \
     -leaseduration $LEASE_DURATION \
     -resourcegroupname $RESOURCEGROUP_NAME \
     -subscriptionid $SUBSCRIPTION_ID 2>/dev/null)
@@ -29,7 +39,8 @@ if [[ "${LEASE_ID}" != null ]]; then
     # Running background process to keep leader role - 1 hr 1min
     ../azbloblease/azbloblease renew \
         -accountname $ACCOUNT_NAME \
-        -container $CONTAINER_NAME \
+        -container "${BLOB_CONTAINER_NAME,,}" \
+        -blobname $BLOB_CONTAINER_NAME \
         -leaseid $LEASE_ID \
         -resourcegroupname $RESOURCEGROUP_NAME \
         -subscriptionid $SUBSCRIPTION_ID \
@@ -40,7 +51,7 @@ if [[ "${LEASE_ID}" != null ]]; then
     log "I'm the leader (LEASID: ${LEASE_ID}), doing stuff..." 
     
     # Waiting random time up to 30 minutes
-    sleep $(( 1 + RANDOM % 1800 ))
+    #sleep $(( 1 + RANDOM % 1800 ))
 else
     log "Could not obtain lease, therefore not being leader, exting"
 fi
