@@ -9,17 +9,15 @@ SUBSCRIPTION_ID="<subid>"
 RENEW_ITERATIONS=60
 RENEW_ITERATION_WAIT_TIME=30
 
-EV2_COMMON_FOLDER="/var/lib/AzureNetapp-Ev2-Common"
-
 # Functions
 function log()
 {
     local MESSAGE=${1}
-    echo "$(echo $(date +"%D %T %Z")) - ${MESSAGE}" >> $EV2_COMMON_FOLDER/runifleader.log
+    echo "$(echo $(date +"%D %T %Z")) - ${MESSAGE}" >> ./runifleader.log
 }
 
 # Try to acquire lease and become leader
-RESULT=$($EV2_COMMON_FOLDER/azbloblease acquire \
+RESULT=$(../azbloblease/azbloblease acquire \
     -accountname $ACCOUNT_NAME \
     -container $CONTAINER_NAME \
     -leaseduration $LEASE_DURATION \
@@ -29,7 +27,7 @@ RESULT=$($EV2_COMMON_FOLDER/azbloblease acquire \
 LEASE_ID=$(echo $RESULT | jq -r ".leaseId")
 if [[ "${LEASE_ID}" != null ]]; then
     # Running background process to keep leader role - 1 hr 1min
-    $EV2_COMMON_FOLDER/azbloblease renew \
+    ../azbloblease/azbloblease renew \
         -accountname $ACCOUNT_NAME \
         -container $CONTAINER_NAME \
         -leaseid $LEASE_ID \

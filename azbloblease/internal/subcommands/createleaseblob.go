@@ -119,7 +119,7 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 	blobURL := containerURL.NewBlockBlobURL(blobName)
 
 	// Check if Blob already exists
-	_, err = blobURL.GetProperties(cntx, azblob.BlobAccessConditions{})
+	_, err = blobURL.GetProperties(cntx, azblob.BlobAccessConditions{}, azblob.ClientProvidedKeyOptions{})
 	if err != nil {
 		if !strings.Contains(err.Error(), "BlobNotFound") {
 			utils.ConsoleOutput(fmt.Sprintf("an error occurred while checking if blob %v exists: %v", blobName, err), config.Stderr())
