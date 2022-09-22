@@ -13,6 +13,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-storage-blob-go/azblob"
@@ -47,7 +48,7 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining storage client/authorizer: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(err.Error())
+		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -60,7 +61,7 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 	)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while executing GetAccountKey: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(err.Error())
+		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -72,7 +73,7 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 	credential, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining azblob credential: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(err.Error())
+		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -85,7 +86,7 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining blob endpoint: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(err.Error())
+		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -114,7 +115,7 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 
 		if err != nil {
 			utils.ConsoleOutput(fmt.Sprintf("an error ocurred while acquiring lease: %v.", err), config.Stderr())
-			response.ErrorMessage = to.StringPtr(err.Error())
+			response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		} else {
 			response.ErrorMessage = nil
 			break

@@ -47,7 +47,7 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 	storageAccountMgmtClient, err := common.GetStorageAccountsClientWithBaseURI(envInfo.ResourceManagerEndpoint, subscriptionID, environment)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining storage client/authorizer: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(err.Error())
+		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -60,7 +60,7 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 	)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while executing GetAccountKey: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(err.Error())
+		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -72,7 +72,7 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 	credential, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining azblob credential: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(err.Error())
+		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -85,7 +85,7 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining blob endpoint: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(err.Error())
+		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -101,7 +101,7 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 	if err != nil {
 		if !strings.Contains(err.Error(), "ContainerNotFound") {
 			utils.ConsoleOutput(fmt.Sprintf("an error occurred while checking if container %v exists: %v", container, err), config.Stderr())
-			response.ErrorMessage = to.StringPtr(err.Error())
+			response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 			return response
 		}
 
@@ -109,7 +109,7 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 		_, err = containerURL.Create(cntx, nil, azblob.PublicAccessNone)
 		if err != nil {
 			utils.ConsoleOutput(fmt.Sprintf("an error occurred trying to create container %v: %v", container, err), config.Stderr())
-			response.ErrorMessage = to.StringPtr(err.Error())
+			response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 			return response
 		}
 	}
@@ -123,7 +123,7 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 	if err != nil {
 		if !strings.Contains(err.Error(), "BlobNotFound") {
 			utils.ConsoleOutput(fmt.Sprintf("an error occurred while checking if blob %v exists: %v", blobName, err), config.Stderr())
-			response.ErrorMessage = to.StringPtr(err.Error())
+			response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 			return response
 		}
 
@@ -145,7 +145,7 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 
 		if err != nil {
 			utils.ConsoleOutput(fmt.Sprintf("an error occurred while uploading blob stream: %v", err), config.Stderr())
-			response.ErrorMessage = to.StringPtr(err.Error())
+			response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 			return response
 		}
 		response.Status = to.StringPtr(config.Success())
