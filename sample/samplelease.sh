@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Variables
-RESOURCEGROUP_NAME="Support-rg"
-ACCOUNT_NAME="pmcstorage05"
+RESOURCEGROUP_NAME="<resource group name>"
+ACCOUNT_NAME="<storage account name>"
 CONTAINER_NAME="azbloblease"
 LEASE_DURATION=60
-SUBSCRIPTION_ID="66bc9830-19b6-4987-94d2-0e487be7aa47"
+SUBSCRIPTION_ID="<subscription id>"
 RENEW_ITERATIONS=60
 RENEW_ITERATION_WAIT_TIME=30
 
@@ -51,7 +51,7 @@ if [[ "${LEASE_ID}" != null ]]; then
     log "I'm the leader (LEASID: ${LEASE_ID}), doing stuff..." 
     
     # Waiting random time up to 30 minutes
-    #sleep $(( 1 + RANDOM % 1800 ))
+    sleep $(( 1 + RANDOM % 1800 ))
 else
     log "Could not obtain lease, therefore not being leader, exting"
 fi
