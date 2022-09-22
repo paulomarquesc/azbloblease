@@ -1,2 +1,2 @@
 # azbloblease
-Golang tool that based on Azure Blob Storage Lease returns a leader
+Tool to be mainly used from a script to obtain an Azure Storage Blob lease.
