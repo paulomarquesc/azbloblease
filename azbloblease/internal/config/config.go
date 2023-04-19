@@ -22,11 +22,11 @@ const (
 
 // Variables locally and globally scoped
 var (
-	userAgent         = "azblobleaseclient"                                                                           // UserAgent - add identification to clients
-	stdout            = log.New(os.Stdout, "", log.LstdFlags)                                                         // Stdout - standard stream output for logs
-	stdoutJSON        = log.New(os.Stdout, "", 0)                                                                     // stdoutJSON - standard output without adding prefixes
-	stderr            = log.New(os.Stderr, "", log.LstdFlags)                                                         // StdErr - Error stream output for logs
-	validEnvironments = []string{"AZUREPUBLICCLOUD", "AZUREUSGOVERNMENTCLOUD", "AZUREGERMANCLOUD", "AZURECHINACLOUD"} // validEnvironments supported Azure cloud types
+	userAgent         = "azblobleaseclient"                                                                      // UserAgent - add identification to clients
+	stdout            = log.New(os.Stdout, "", log.LstdFlags)                                                    // Stdout - standard stream output for logs
+	stdoutJSON        = log.New(os.Stdout, "", 0)                                                                // stdoutJSON - standard output without adding prefixes
+	stderr            = log.New(os.Stderr, "", log.LstdFlags)                                                    // StdErr - Error stream output for logs
+	validEnvironments = []string{"AZUREPUBLICCLOUD", "AZUREUSGOVERNMENTCLOUD", "AZURECHINACLOUD", "CUSTOMCLOUD"} // validEnvironments supported Azure cloud types
 
 	errorCodes = map[string]int{
 		"InvalidErrorCode":                           10,  // Used when an error name passed to GetErrorCode is invalid
@@ -38,7 +38,7 @@ var (
 		"ErrInvalidArgumentMissingLeaseID":           150, // Missing lease ID
 		"ErrInvalidArgumentMissingSubscriptionID":    160, // Missing subscription ID
 		"ErrInvalidCloudType":                        170, // An invalid cloud type was passed
-		"ErrAuthorizer":                              300, // Error code related to issues getting authorizer
+		"ErrAuthentication":                          300, // Error code related to issues getting authenticated
 		"ErrInvalidArgumentIterationsCount":          500, // Iterations cannot be less then 1
 		"ErrInvalidArgumentRetryCount":               510, // Retry count on acquire cannot be less then 1
 		"ErrInvalidArgumentWaitTime":                 520, // Invalid wait time between renew iteration, valid values are between 1 and 59 seconds

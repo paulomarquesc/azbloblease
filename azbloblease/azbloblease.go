@@ -29,8 +29,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/config"
+	"github.com/paulomarquesc/azbloblease/azbloblease/internal/iam"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/subcommands"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/utils"
 )
@@ -67,6 +69,8 @@ func main() {
 	createLeaseBlobBlobContainerPtr := createLeaseBlobCommand.String("container", "", "Blob container name")
 	createLeaseBlobBlobBlobNamePtr := createLeaseBlobCommand.String("blobname", config.BlobName(), "Blob name")
 	createLeaseBlobEnvironmentPtr := createLeaseBlobCommand.String("environment", "AZUREPUBLICCLOUD", fmt.Sprintf("Azure cloud type, currently supported ones are: %v", config.ValidEnvironments()))
+	createLeaseBlobManagedIdentityId := createLeaseBlobCommand.String("managed-identity-id", "", "uses user managed identities (accepts resource id or client id)")
+	createLeaseBlobUseSystemManagedIdentity := createLeaseBlobCommand.Bool("use-system-managed-identity", false, "uses system managed identity")
 
 	// Acquire subcommand flag pointers
 	acquireSubscriptionIDPtr := acquireCommand.String("subscriptionid", "", "Subscription where the Storage Account is located")
@@ -78,6 +82,8 @@ func main() {
 	acquireRetriesPtr := acquireCommand.Int("retries", 1, "Lease acquire operation, number of retry attempts")
 	acquireWaitTimeSecPtr := acquireCommand.Int("waittimesec", 0, "Time in seconds between iterations to renew current lease, must be between 1 and 59 seconds, ideally half of the time used when acquiring lease")
 	acquireEnvironmentPtr := acquireCommand.String("environment", "AZUREPUBLICCLOUD", fmt.Sprintf("Azure cloud type, currently supported ones are: %v", config.ValidEnvironments()))
+	acquireManagedIdentityId := acquireCommand.String("managed-identity-id", "", "uses user managed identities (accepts resource id or client id)")
+	acquireUseSystemManagedIdentity := acquireCommand.Bool("use-system-managed-identity", false, "uses system managed identity")
 
 	// Renew subcommand flag pointers
 	renewSubscriptionIDPtr := renewCommand.String("subscriptionid", "", "Subscription where the Storage Account is located")
@@ -89,66 +95,15 @@ func main() {
 	renewIterationsPtr := renewCommand.Int("iterations", 20, "Lease renew, number of times it will repeat renew operation")
 	renewWaitTimeSecPtr := renewCommand.Int("waittimesec", 30, "Time in seconds between iterations to renew current lease, must be between 1 and 59 seconds, ideally half of the time used when acquiring lease")
 	renewEnvironmentPtr := renewCommand.String("environment", "AZUREPUBLICCLOUD", fmt.Sprintf("Azure cloud type, currently supported ones are: %v", config.ValidEnvironments()))
+	renewManagedIdentityId := renewCommand.String("managed-identity-id", "", "uses user managed identities (accepts resource id or client id)")
+	renewUseSystemManagedIdentity := renewCommand.Bool("use-system-managed-identity", false, "uses system managed identity")
 
 	flag.Parse()
 
 	if len(os.Args) < 2 {
 		utils.PrintHeader(fmt.Sprintf("azbloblease - CLI tool to help on leader elections based on Azure Blob Storage blob leasing process - v%v", config.Version()))
 
-		fmt.Println("")
-		fmt.Println("General usage")
-		fmt.Println("")
-		fmt.Println("\tazbloblease <command> <options>")
-		fmt.Println("")
-
-		fmt.Println("List of commands and their options")
-
-		fmt.Println("")
-		fmt.Println(fmt.Sprintf("%v - Creates a blob to be used for the lease process", createLeaseBlobCommand.Name()))
-		fmt.Println("")
-		createLeaseBlobCommand.PrintDefaults()
-		fmt.Println("")
-		fmt.Println("\tExample")
-		fmt.Println("\t\tazbloblease createleaseblob -accountname \"mystorageaccount\" -container \"azbloblease\" -blobname \"myblob\" -resourcegroupname \"my-rg\" -subscriptionid \"11111111-1111-1111-1111-111111111111\"")
-		fmt.Println("")
-		fmt.Println("\tOutputs")
-		fmt.Println("\t\tstdout - json response after createleaseblob process is executed")
-		fmt.Println("\t\tstderr - error messages")
-
-		fmt.Println("")
-		fmt.Println(fmt.Sprintf("%v - Acquires a lease", acquireCommand.Name()))
-		fmt.Println("")
-		acquireCommand.PrintDefaults()
-		fmt.Println("")
-		fmt.Println("\tExample")
-		fmt.Println("\t\tazbloblease acquire -accountname \"mystorageaccount\" -container \"azbloblease\" -blobname \"myblob\" -leaseduration 60 -resourcegroupname \"my-rg\" -subscriptionid \"11111111-1111-1111-1111-111111111111\"")
-		fmt.Println("")
-		fmt.Println("\tOutputs")
-		fmt.Println("\t\tstdout - json response after acquire process is executed")
-		fmt.Println("\t\tstderr - error messages")
-
-		fmt.Println("")
-		fmt.Println(fmt.Sprintf("%v - Renews a lease for # of iterations based on an interval between", renewCommand.Name()))
-		fmt.Println("")
-		renewCommand.PrintDefaults()
-		fmt.Println("")
-		fmt.Println("\tExample")
-		fmt.Println("\t\tazbloblease renew -accountname \"mystorageaccount\" -container \"azbloblease\" -blobname \"myblob\" -leaseid \"d3d63201-153b-453b-85ef-6c3bee3082f0\" -resourcegroupname \"my-rg\" -subscriptionid \"11111111-1111-1111-1111-111111111111\" -iterations 10 -waittimesec 30")
-		fmt.Println("")
-		fmt.Println("\tOutputs")
-		fmt.Println("\t\tstdout - json response after all renew iteration operations complete")
-		fmt.Println("\t\tstderr - diagnostic messages in every iteration and error messages")
-
-		fmt.Println("")
-		fmt.Println(fmt.Sprintf("%v - gets tool version", versionCommand.Name()))
-		fmt.Println("")
-		versionCommand.PrintDefaults()
-		fmt.Println("")
-		fmt.Println("\tExample")
-		fmt.Println("\t\tazbloblease version")
-		fmt.Println("")
-		fmt.Println("\tOutputs")
-		fmt.Println("\t\tstdout - tool version")
+		utils.PrintUsage(createLeaseBlobCommand, acquireCommand, renewCommand, versionCommand)
 
 		exitCode = config.ErrorCode("ErrInvalidArgument")
 		return
@@ -179,7 +134,11 @@ func main() {
 		return
 	}
 
-	// CreateLeaseBlob subcommnad execution
+	// Azure authentication
+	var cred azcore.TokenCredential
+	var err error
+
+	// CreateLeaseBlob subcommand execution
 	if createLeaseBlobCommand.Parsed() {
 
 		// Validations
@@ -222,6 +181,14 @@ func main() {
 			}
 		}
 
+		// Azure authentication
+		cred, err = iam.GetTokenCredentials(*createLeaseBlobManagedIdentityId, *createLeaseBlobUseSystemManagedIdentity)
+		if err != nil {
+			utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining token credential: %v", err), config.Stderr())
+			exitCode = config.ErrorCode("ErrAuthentication")
+			return
+		}
+
 		// Run createLeaseBlob
 		createLeaseBlobResult := subcommands.CreateLeaseBlob(
 			cntx,
@@ -231,6 +198,7 @@ func main() {
 			strings.ToLower(*createLeaseBlobBlobContainerPtr),
 			*createLeaseBlobBlobBlobNamePtr,
 			strings.ToUpper(*createLeaseBlobEnvironmentPtr),
+			cred,
 		)
 
 		// Outputs json result in stdout
@@ -241,7 +209,7 @@ func main() {
 		)
 	}
 
-	// Acquire subcommnad execution
+	// Acquire subcommand execution
 	if acquireCommand.Parsed() {
 
 		// Validations
@@ -305,6 +273,14 @@ func main() {
 			}
 		}
 
+		// Azure authentication
+		cred, err = iam.GetTokenCredentials(*acquireManagedIdentityId, *acquireUseSystemManagedIdentity)
+		if err != nil {
+			utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining token credential: %v", err), config.Stderr())
+			exitCode = config.ErrorCode("ErrAuthentication")
+			return
+		}
+
 		// Run acquire
 		acquireResult := subcommands.AcquireLease(
 			cntx,
@@ -317,6 +293,7 @@ func main() {
 			*acquireLeaseDurationPtr,
 			*acquireRetriesPtr,
 			*acquireWaitTimeSecPtr,
+			cred,
 		)
 
 		// Outputs json result in stdout
@@ -327,7 +304,7 @@ func main() {
 		)
 	}
 
-	// Renew subcommnad execution
+	// Renew subcommand execution
 	if renewCommand.Parsed() {
 
 		// Validations
@@ -391,6 +368,14 @@ func main() {
 			}
 		}
 
+		// Azure authentication
+		cred, err = iam.GetTokenCredentials(*renewManagedIdentityId, *renewUseSystemManagedIdentity)
+		if err != nil {
+			utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining token credential: %v", err), config.Stderr())
+			exitCode = config.ErrorCode("ErrAuthentication")
+			return
+		}
+
 		// Run renew
 		renewResult := subcommands.RenewLease(
 			cntx,
@@ -403,6 +388,7 @@ func main() {
 			strings.ToUpper(*renewEnvironmentPtr),
 			*renewIterationsPtr,
 			*renewWaitTimeSecPtr,
+			cred,
 		)
 
 		// Outputs result into stdout

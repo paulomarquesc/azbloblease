@@ -12,84 +12,36 @@ package common
 import (
 	"context"
 	"fmt"
-	"os"
 
-	"github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2019-06-01/storage"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/config"
-	"github.com/paulomarquesc/azbloblease/azbloblease/internal/iam"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/utils"
 )
 
-// GetStorageAccountsClientWithBaseURI - returns an storage account client by using a base URI, for a custom endpoint,
-// Use this when interacting with an Azure cloud that uses a non-standard base URI (sovereign clouds, Azure stack).
-func GetStorageAccountsClientWithBaseURI(baseUri, subscriptionID, environment string) (storage.AccountsClient, error) {
-
-	// Setting Azure cloud type as OS variable
-	os.Setenv("AZURE_ENVIRONMENT", environment)
-
-	storageAccountsClient := storage.NewAccountsClientWithBaseURI(baseUri, subscriptionID)
-
-	utils.ConsoleOutput(fmt.Sprintf("environment: %v.", environment), config.Stdout())
-
-	// Getting authorizer
-	auth, err := iam.GetAuthorizer()
-	if err != nil {
-		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining authorizer: %v.", err), config.Stderr())
-		return storage.AccountsClient{}, err
-	}
-
-	storageAccountsClient.Authorizer = auth
-	storageAccountsClient.AddToUserAgent(config.UserAgent())
-	return storageAccountsClient, nil
-}
-
-// GetAccountKey returns Key1 value from specified storage account
-func GetAccountKey(cntx context.Context, accountsClient storage.AccountsClient, resourceGroupName, accountName string) (string, error) {
-	var expand storage.ListKeyExpand
-	keysResult, err := accountsClient.ListKeys(
-		cntx,
-		resourceGroupName,
-		accountName,
-		expand,
-	)
-
-	if err != nil {
-		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while invoking listkey: %v", err), config.Stderr())
-		return "", err
-	}
-
-	if keysResult.Response.StatusCode == 401 {
-		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while invoking listkey: %v", keysResult.Response.Status), config.Stderr())
-		return "", fmt.Errorf("an error ocurred while invoking listkey: %v", keysResult.Response.Status)
-	}
-
-	return *((*keysResult.Keys)[0].Value), nil
-}
-
 // GetAccountProperties returns storage account properties
-func GetAccountProperties(cntx context.Context, accountsClient storage.AccountsClient, resourceGroupName, accountName string) (storage.Account, error) {
-	var expand storage.AccountExpand
+func GetAccountProperties(cntx context.Context, accountsClient armstorage.AccountsClient, resourceGroupName, accountName string) (armstorage.AccountsClientGetPropertiesResponse, error) {
+
 	storageAccountProps, err := accountsClient.GetProperties(
 		cntx,
 		resourceGroupName,
 		accountName,
-		expand,
+		nil,
 	)
 
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while getting storage account properties: %v", err), config.Stderr())
-		return storage.Account{}, err
+		return armstorage.AccountsClientGetPropertiesResponse{}, err
 	}
 
 	return storageAccountProps, nil
 }
 
 // GetAccountBlobEndpoint gets the url of the blobendpoint, needed by azblob package
-func GetAccountBlobEndpoint(cntx context.Context, accountsClient storage.AccountsClient, resourceGroupName, accountName string) string {
+func GetAccountBlobEndpoint(cntx context.Context, accountsClient *armstorage.AccountsClient, resourceGroupName, accountName string) string {
 	// Getting Storage Account Properties to identify the blob endpoint
 	storageAccountProps, err := GetAccountProperties(
 		cntx,
-		accountsClient,
+		*accountsClient,
 		resourceGroupName,
 		accountName,
 	)
@@ -99,6 +51,6 @@ func GetAccountBlobEndpoint(cntx context.Context, accountsClient storage.Account
 		return ""
 	}
 
-	return *storageAccountProps.PrimaryEndpoints.Blob
+	return *storageAccountProps.Properties.PrimaryEndpoints.Blob
 
 }
