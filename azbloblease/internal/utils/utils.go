@@ -11,10 +11,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"strings"
 
-	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/paulomarquesc/azbloblease/azbloblease/internal/config"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/models"
 )
 
@@ -113,14 +114,16 @@ func BuildResultResponse(result models.ResponseInfo) string {
 	return strings.Replace(string(responseJSON), "\"\"", "null", -1)
 }
 
-// Environment returns an `azure.Environment{...}` for the current cloud.
-func Environment(CloudType string) *azure.Environment {
-
-	env, err := azure.EnvironmentFromName(CloudType)
+// ImportCloudConfigJson imports the cloud config json file and returns a struct
+func ImportCloudConfigJson(path string) (*models.CloudConfigInfo, error) {
+	infoJSON, err := ioutil.ReadFile(path)
 	if err != nil {
-		panic(fmt.Sprintf(
-			"invalid cloud name '%s' specified, cannot continue\n", CloudType))
+		ConsoleOutput(fmt.Sprintf("failed to read file: %v", err), config.Stderr())
+		return &models.CloudConfigInfo{}, err
 	}
 
-	return &env
+	// Converting json to struct
+	var info models.CloudConfigInfo
+	json.Unmarshal(infoJSON, &info)
+	return &info, nil
 }

@@ -12,7 +12,7 @@ import (
 
 // Constants
 const (
-	version              = "1.0.4"
+	version              = "2.0.0"
 	blobName             = "azblobleaseblob"
 	success              = "Success"
 	fail                 = "Fail"
@@ -38,6 +38,9 @@ var (
 		"ErrInvalidArgumentMissingLeaseID":           150, // Missing lease ID
 		"ErrInvalidArgumentMissingSubscriptionID":    160, // Missing subscription ID
 		"ErrInvalidCloudType":                        170, // An invalid cloud type was passed
+		"ErrCloudConfigFileOnlyForCustomCloud":       180, // Cloud config file is only supported for custom cloud
+		"ErrCloudConfigFileNotFound":                 181, // Cloud config file not found
+		"ErrCloudConfigFileRequiredForCustomCloud":   182, // Cloud config file is required for custom cloud
 		"ErrAuthentication":                          300, // Error code related to issues getting authenticated
 		"ErrInvalidArgumentIterationsCount":          500, // Iterations cannot be less then 1
 		"ErrInvalidArgumentRetryCount":               510, // Retry count on acquire cannot be less then 1

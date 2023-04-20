@@ -14,13 +14,9 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"net/url"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blockblob"
 	"github.com/Azure/go-autorest/autorest/to"
@@ -31,11 +27,8 @@ import (
 )
 
 // CreateLeaseBlob - creates a blob to be used for storage lease process
-func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, accountName, container, blobName, environment string, cred azcore.TokenCredential) models.ResponseInfo {
+func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, accountName, container, blobName, environment, cloudConfigFile string, cred azcore.TokenCredential) models.ResponseInfo {
 
-	//-------------------------------------
-	// Operations based on storage mgmt sdk
-	//-------------------------------------
 	response := models.ResponseInfo{
 		SubscriptionID:     &subscriptionID,
 		ResourceGroupName:  &resourceGroupName,
@@ -45,78 +38,32 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 		Status:             to.StringPtr(config.Fail()),
 	}
 
-	// Getting storage client
-	cloudConfig := cloud.Configuration{}
-
-	if environment == "AZUREUSGOVERNMENTCLOUD" {
-		cloudConfig = cloud.AzureGovernment
-	} else if environment == "AZURECHINACLOUD" {
-		cloudConfig = cloud.AzureChina
-	} else if environment == "CUSTOMCLOUD" {
-		// TODO:
-		cloudConfig = cloud.Configuration{}
-	} else {
-		cloudConfig = cloud.AzurePublic
-	}
-
-	options := arm.ClientOptions{
-		ClientOptions: azcore.ClientOptions{
-			Cloud: cloudConfig,
-		},
-	}
-
-	storageClientFactory, err := armstorage.NewClientFactory(subscriptionID, cred, &options)
+	// Getting storage client and keys
+	storageAccountClient, err := common.GetStorageClient(subscriptionID, environment, cloudConfigFile, cred)
 	if err != nil {
-		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while storage account client: %v", err), config.Stderr())
+		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while getting storage account client: %v.", err), config.Stderr())
 		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
-	storageAccountClient := storageClientFactory.NewAccountsClient()
-
-	accountKeys, err := storageAccountClient.ListKeys(cntx, resourceGroupName, accountName, nil)
+	accountKeys, err := common.GetStorageAccountKey(cntx, storageAccountClient, resourceGroupName, accountName)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while getting storage account keys: %v.", err), config.Stderr())
 		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
-	//-----------------------------------
-	// Operations based on azblob package
-	//-----------------------------------
-
-	// Create a credential object; this is used to access account while using azblob module.
-	credential, err := azblob.NewSharedKeyCredential(accountName, *accountKeys.Keys[0].Value)
-	if err != nil {
-		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining azblob credential: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
-		return response
-	}
-
-	// Getting blob endpoint
-	blobEndppointURL, err := url.Parse(
-		common.GetAccountBlobEndpoint(cntx, storageAccountClient, resourceGroupName, accountName),
-	)
-
-	if err != nil {
-		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining blob endpoint: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
-		return response
-	}
-
-	// Getting a blob client to be used in container operations
-	azBlobClient, err := azblob.NewClientWithSharedKeyCredential(blobEndppointURL.String(), credential, nil)
-
+	// Getting blob client
+	azBlobClient, err := common.GetBlobClient(cntx, "", accountName, resourceGroupName, *accountKeys.Keys[0].Value, storageAccountClient, cred)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining az blob client: %v", err), config.Stderr())
 		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
-	// Create an ServiceURL object that wraps the service URL and a request pipeline.
-	containerClient := azBlobClient.ServiceClient().NewContainerClient(container)
-
 	// Check if container already exists
+	containerClient := azBlobClient.Client.ServiceClient().NewContainerClient(container)
+
 	_, err = containerClient.GetProperties(cntx, nil)
 	if err != nil {
 		if !strings.Contains(err.Error(), "ContainerNotFound") {
@@ -134,17 +81,23 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 		}
 	}
 
-	// Getting specific blob client
-	blobURL := fmt.Sprintf("%v%v/%v", blobEndppointURL.String(), container, blobName)
+	blobRelativePath := fmt.Sprintf("%v/%v", container, blobName)
+	blobURL := fmt.Sprintf("%v%v", azBlobClient.URL, blobRelativePath)
 
-	blobClient, err := blockblob.NewClientWithSharedKeyCredential(blobURL, credential, nil)
+	blockBlobClient, err := blockblob.NewClientWithSharedKeyCredential(blobURL, &azBlobClient.SharedKeyCredential, nil)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error occurred trying to create blob client for blob %v, error: %v", blobURL, err), config.Stderr())
 		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
-	_, err = blobClient.GetProperties(cntx, nil)
+	if err != nil {
+		utils.ConsoleOutput(fmt.Sprintf("an error occurred trying to create blob client for blob %v, error: %v", blobURL, err), config.Stderr())
+		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+		return response
+	}
+
+	_, err = blockBlobClient.GetProperties(cntx, nil)
 	if err != nil {
 		if !strings.Contains(err.Error(), "BlobNotFound") {
 			utils.ConsoleOutput(fmt.Sprintf("an error occurred while checking if blob %v exists: %v", blobName, err), config.Stderr())
@@ -159,12 +112,7 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 		data := make([]byte, blobSize)
 		rand.Read(data)
 
-		_, err = blobClient.UploadStream(
-			cntx,
-			bytes.NewReader(data),
-			&blockblob.UploadStreamOptions{},
-		)
-
+		_, err = blockBlobClient.UploadStream(cntx, bytes.NewReader(data), &blockblob.UploadStreamOptions{})
 		if err != nil {
 			utils.ConsoleOutput(fmt.Sprintf("an error occurred while uploading blob stream: %v", err), config.Stderr())
 			response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))

@@ -12,9 +12,15 @@ package common
 import (
 	"context"
 	"fmt"
+	"net/url"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/config"
+	"github.com/paulomarquesc/azbloblease/azbloblease/internal/models"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/utils"
 )
 
@@ -52,5 +58,102 @@ func GetAccountBlobEndpoint(cntx context.Context, accountsClient *armstorage.Acc
 	}
 
 	return *storageAccountProps.Properties.PrimaryEndpoints.Blob
+}
 
+// GetStorageClient gets a storage client
+func GetStorageClient(subscriptionID, environment, cloudConfigFile string, cred azcore.TokenCredential) (armstorage.AccountsClient, error) {
+
+	// Getting storage client
+	cloudConfig := cloud.Configuration{}
+
+	if environment == "AZUREUSGOVERNMENTCLOUD" {
+		cloudConfig = cloud.AzureGovernment
+	} else if environment == "AZURECHINACLOUD" {
+		cloudConfig = cloud.AzureChina
+	} else if environment == "CUSTOMCLOUD" {
+
+		// This is the mapping between values expected on cloud.Configuration
+		// and the output of az cloud show -n AzureCloud -o json
+		//
+		// ActiveDirectoryAuthorityHost = endpoints.activeDirectory (e.g."https://login.microsoftonline.us")
+		// Endpoint = endpoints.resourceManager (e.g. "https://management.usgovcloudapi.net")
+		// Audience = endpoints.activeDirectoryResourceId (e.g. "https://management.core.usgovcloudapi.net")
+
+		if cloudConfigFile != "" {
+			cloudInfo, err := utils.ImportCloudConfigJson(cloudConfigFile)
+			if err != nil {
+				return armstorage.AccountsClient{}, fmt.Errorf("an error ocurred while importing cloud config information from json file: %v", err)
+			}
+
+			cloudConfig = cloud.Configuration{
+				ActiveDirectoryAuthorityHost: cloudInfo.Endpoints.ActiveDirectoryAuthorityHost,
+				Services: map[cloud.ServiceName]cloud.ServiceConfiguration{
+					cloud.ResourceManager: {
+						Endpoint: cloudInfo.Endpoints.ResourceManagerEndpoint,
+						Audience: cloudInfo.Endpoints.ResourceManagerEndpoint,
+					},
+				},
+			}
+		}
+
+	} else {
+		cloudConfig = cloud.AzurePublic
+	}
+
+	options := arm.ClientOptions{
+		ClientOptions: azcore.ClientOptions{
+			Cloud: cloudConfig,
+		},
+	}
+
+	storageClientFactory, err := armstorage.NewClientFactory(subscriptionID, cred, &options)
+	if err != nil {
+		return armstorage.AccountsClient{}, fmt.Errorf("an error ocurred while storage account client: %v", err)
+	}
+
+	return *storageClientFactory.NewAccountsClient(), nil
+}
+
+// GetStorageAccountKey gets storage account keys
+func GetStorageAccountKey(cntx context.Context, storageAccountClient armstorage.AccountsClient, resourceGroupName, accountName string) (armstorage.AccountsClientListKeysResponse, error) {
+
+	accountKeys, err := storageAccountClient.ListKeys(cntx, resourceGroupName, accountName, nil)
+	if err != nil {
+		return armstorage.AccountsClientListKeysResponse{}, fmt.Errorf("an error ocurred while getting storage account keys: %v", err)
+	}
+
+	return accountKeys, nil
+}
+
+// GetBlobClient gets a blob client
+func GetBlobClient(cntx context.Context, relativePath, accountName, resourceGroupName, key string, storageAccountClient armstorage.AccountsClient, cred azcore.TokenCredential) (models.AzBlobClient, error) {
+
+	result := models.AzBlobClient{}
+
+	// Getting blob endpoint
+	blobEndppointURL, err := url.Parse(
+		GetAccountBlobEndpoint(cntx, &storageAccountClient, resourceGroupName, accountName),
+	)
+
+	// Getting specific blob client
+	var url string = ""
+	if relativePath == "" {
+		url = blobEndppointURL.String()
+	} else {
+		url = fmt.Sprintf("%v%v", blobEndppointURL.String(), relativePath)
+	}
+
+	// Create a credential object; this is used to access account while using azblob module.
+	credential, err := azblob.NewSharedKeyCredential(accountName, key)
+	if err != nil {
+		return result, fmt.Errorf("an error ocurred while obtaining azblob credential: %v", err)
+	}
+
+	// Getting a blob client to be used in container operations
+	blobClient, err := azblob.NewClientWithSharedKeyCredential(url, credential, nil)
+	if err != nil {
+		return result, fmt.Errorf("an error ocurred while obtaining az blob client: %v", err)
+	}
+
+	return models.AzBlobClient{Client: blobClient, URL: url, SharedKeyCredential: *credential}, nil
 }

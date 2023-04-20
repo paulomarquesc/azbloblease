@@ -12,15 +12,10 @@ package subcommands
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
-	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
-	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blockblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/lease"
 	"github.com/Azure/go-autorest/autorest/to"
@@ -31,11 +26,8 @@ import (
 )
 
 // RenewLease - attempts to renew an Azure blob storage lease
-func RenewLease(cntx context.Context, subscriptionID, resourceGroupName, accountName, container, blobName, leaseID, environment string, iterations, waittimesec int, cred azcore.TokenCredential) models.ResponseInfo {
+func RenewLease(cntx context.Context, subscriptionID, resourceGroupName, accountName, container, blobName, leaseID, environment, cloudConfigFile string, iterations, waittimesec int, cred azcore.TokenCredential) models.ResponseInfo {
 
-	//-------------------------------------
-	// Operations based on storage mgmt sdk
-	//-------------------------------------
 	response := models.ResponseInfo{
 		SubscriptionID:     &subscriptionID,
 		ResourceGroupName:  &resourceGroupName,
@@ -45,77 +37,69 @@ func RenewLease(cntx context.Context, subscriptionID, resourceGroupName, account
 		Status:             to.StringPtr(config.Fail()),
 	}
 
-	// Getting storage client
-	cloudConfig := cloud.Configuration{}
-
-	if environment == "AZUREUSGOVERNMENTCLOUD" {
-		cloudConfig = cloud.AzureGovernment
-	} else if environment == "AZURECHINACLOUD" {
-		cloudConfig = cloud.AzureChina
-	} else if environment == "CUSTOMCLOUD" {
-		// TODO:
-
-		cloudConfig = cloud.Configuration{}
-	} else {
-		cloudConfig = cloud.AzurePublic
-	}
-
-	options := arm.ClientOptions{
-		ClientOptions: azcore.ClientOptions{
-			Cloud: cloudConfig,
-		},
-	}
-
-	storageClientFactory, err := armstorage.NewClientFactory(subscriptionID, cred, &options)
+	// Getting storage client and keys
+	storageAccountClient, err := common.GetStorageClient(subscriptionID, environment, cloudConfigFile, cred)
 	if err != nil {
-		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while storage account client: %v", err), config.Stderr())
+		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while getting storage account client: %v.", err), config.Stderr())
 		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
-	storageAccountClient := storageClientFactory.NewAccountsClient()
-
-	accountKeys, err := storageAccountClient.ListKeys(cntx, resourceGroupName, accountName, nil)
+	accountKeys, err := common.GetStorageAccountKey(cntx, storageAccountClient, resourceGroupName, accountName)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while getting storage account keys: %v.", err), config.Stderr())
 		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
-	//-----------------------------------
-	// Operations based on azblob package
-	//-----------------------------------
+	// // Create a credential object; this is used to access account while using azblob module.
+	// credential, err := azblob.NewSharedKeyCredential(accountName, *accountKeys.Keys[0].Value)
+	// if err != nil {
+	// 	utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining azblob credential: %v.", err), config.Stderr())
+	// 	response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+	// 	return response
+	// }
 
-	// Create a credential object; this is used to access account while using azblob module.
-	credential, err := azblob.NewSharedKeyCredential(accountName, *accountKeys.Keys[0].Value)
+	// // Getting blob endpoint
+	// blobEndppointURL, err := url.Parse(
+	// 	common.GetAccountBlobEndpoint(cntx, &storageAccountClient, resourceGroupName, accountName),
+	// )
+
+	// if err != nil {
+	// 	utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining blob endpoint: %v.", err), config.Stderr())
+	// 	response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+	// 	return response
+	// }
+
+	// // Getting specific blob client
+	// blobURL := fmt.Sprintf("%v%v/%v", blobEndppointURL.String(), container, blobName)
+
+	// blobClient, err := blockblob.NewClientWithSharedKeyCredential(blobURL, credential, nil)
+	// if err != nil {
+	// 	utils.ConsoleOutput(fmt.Sprintf("an error occurred trying to create blob client for blob %v, error: %v", blobURL, err), config.Stderr())
+	// 	response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+	// 	return response
+	// }
+
+	// Getting blob client
+	azBlobClient, err := common.GetBlobClient(cntx, "", accountName, resourceGroupName, *accountKeys.Keys[0].Value, storageAccountClient, cred)
 	if err != nil {
-		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining azblob credential: %v.", err), config.Stderr())
+		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining az blob client: %v", err), config.Stderr())
 		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
-	// Getting blob endpoint
-	blobEndppointURL, err := url.Parse(
-		common.GetAccountBlobEndpoint(cntx, storageAccountClient, resourceGroupName, accountName),
-	)
+	blobRelativePath := fmt.Sprintf("%v/%v", container, blobName)
+	blobURL := fmt.Sprintf("%v%v", azBlobClient.URL, blobRelativePath)
 
-	if err != nil {
-		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining blob endpoint: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
-		return response
-	}
-
-	// Getting specific blob client
-	blobURL := fmt.Sprintf("%v%v/%v", blobEndppointURL.String(), container, blobName)
-
-	blobClient, err := blockblob.NewClientWithSharedKeyCredential(blobURL, credential, nil)
+	blockBlobClient, err := blockblob.NewClientWithSharedKeyCredential(blobURL, &azBlobClient.SharedKeyCredential, nil)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error occurred trying to create blob client for blob %v, error: %v", blobURL, err), config.Stderr())
 		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
-	_, err = blobClient.GetProperties(cntx, nil)
+	_, err = blockBlobClient.GetProperties(cntx, nil)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error occurred trying to get blob %v, error: %v", blobURL, err), config.Stderr())
 		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
@@ -126,7 +110,7 @@ func RenewLease(cntx context.Context, subscriptionID, resourceGroupName, account
 	for i := 0; i < iterations; i++ {
 
 		// Getting lease client
-		blobLeaseClient, err := lease.NewBlobClient(blobClient, &lease.BlobClientOptions{
+		blobLeaseClient, err := lease.NewBlobClient(blockBlobClient, &lease.BlobClientOptions{
 			LeaseID: &leaseID,
 		})
 
