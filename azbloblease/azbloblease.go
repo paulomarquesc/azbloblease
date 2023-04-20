@@ -29,8 +29,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/config"
+	"github.com/paulomarquesc/azbloblease/azbloblease/internal/iam"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/subcommands"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/utils"
 )
@@ -61,94 +63,50 @@ func main() {
 	// TODO: Implement release command
 
 	// CreateLeaseBlob subcommand flag pointers
-	createLeaseBlobSubscriptionIDPtr := createLeaseBlobCommand.String("subscriptionid", "", "Subscription where the Storage Account is located")
-	createLeaseBlobResourceGroupNamePtr := createLeaseBlobCommand.String("resourcegroupname", "", "Storage Account Resource Group Name")
-	createLeaseBlobAccountNamePtr := createLeaseBlobCommand.String("accountname", "", "Storage Account Name")
-	createLeaseBlobBlobContainerPtr := createLeaseBlobCommand.String("container", "", "Blob container name")
-	createLeaseBlobBlobBlobNamePtr := createLeaseBlobCommand.String("blobname", config.BlobName(), "Blob name")
-	createLeaseBlobEnvironmentPtr := createLeaseBlobCommand.String("environment", "AZUREPUBLICCLOUD", fmt.Sprintf("Azure cloud type, currently supported ones are: %v", config.ValidEnvironments()))
+	createLeaseBlobSubscriptionID := createLeaseBlobCommand.String("subscriptionid", "", "Subscription where the Storage Account is located")
+	createLeaseBlobResourceGroupName := createLeaseBlobCommand.String("resourcegroupname", "", "Storage Account Resource Group Name")
+	createLeaseBlobAccountName := createLeaseBlobCommand.String("accountname", "", "Storage Account Name")
+	createLeaseBlobBlobContainer := createLeaseBlobCommand.String("container", "", "Blob container name")
+	createLeaseBlobBlobBlobName := createLeaseBlobCommand.String("blobname", config.BlobName(), "Blob name")
+	createLeaseBlobEnvironment := createLeaseBlobCommand.String("environment", "AZUREPUBLICCLOUD", fmt.Sprintf("Azure cloud type, currently supported ones are: %v", config.ValidEnvironments()))
+	createLeaseBlobManagedIdentityId := createLeaseBlobCommand.String("managed-identity-id", "", "uses user managed identities (accepts resource id or client id)")
+	createLeaseBlobUseSystemManagedIdentity := createLeaseBlobCommand.Bool("use-system-managed-identity", false, "uses system managed identity")
+	createLeaseBlobCustomCloudConfigFile := createLeaseBlobCommand.String("custom-cloudconfig-file", "", "passes a custom cloud configuration to the sdk for use with non-public azure clouds, only used for CUSTOMCLOUD environment")
 
 	// Acquire subcommand flag pointers
-	acquireSubscriptionIDPtr := acquireCommand.String("subscriptionid", "", "Subscription where the Storage Account is located")
-	acquireResourceGroupNamePtr := acquireCommand.String("resourcegroupname", "", "Storage Account Resource Group Name")
-	acquireAccountNamePtr := acquireCommand.String("accountname", "", "Storage Account Name")
-	acquireBlobContainerPtr := acquireCommand.String("container", "", "Blob container name")
-	acquireBlobNamePtr := acquireCommand.String("blobname", config.BlobName(), "Blob name")
-	acquireLeaseDurationPtr := acquireCommand.Int("leaseduration", 60, "Lease duration in seconds, valid values are between 15 and 60, -1 is not supported in this tool")
-	acquireRetriesPtr := acquireCommand.Int("retries", 1, "Lease acquire operation, number of retry attempts")
-	acquireWaitTimeSecPtr := acquireCommand.Int("waittimesec", 0, "Time in seconds between iterations to renew current lease, must be between 1 and 59 seconds, ideally half of the time used when acquiring lease")
-	acquireEnvironmentPtr := acquireCommand.String("environment", "AZUREPUBLICCLOUD", fmt.Sprintf("Azure cloud type, currently supported ones are: %v", config.ValidEnvironments()))
+	acquireSubscriptionID := acquireCommand.String("subscriptionid", "", "Subscription where the Storage Account is located")
+	acquireResourceGroupName := acquireCommand.String("resourcegroupname", "", "Storage Account Resource Group Name")
+	acquireAccountName := acquireCommand.String("accountname", "", "Storage Account Name")
+	acquireBlobContainer := acquireCommand.String("container", "", "Blob container name")
+	acquireBlobName := acquireCommand.String("blobname", config.BlobName(), "Blob name")
+	acquireLeaseDuration := acquireCommand.Int("leaseduration", 60, "Lease duration in seconds, valid values are between 15 and 60, -1 is not supported in this tool")
+	acquireRetries := acquireCommand.Int("retries", 1, "Lease acquire operation, number of retry attempts")
+	acquireWaitTimeSec := acquireCommand.Int("waittimesec", 0, "Time in seconds between iterations to renew current lease, must be between 1 and 59 seconds, ideally half of the time used when acquiring lease")
+	acquireEnvironment := acquireCommand.String("environment", "AZUREPUBLICCLOUD", fmt.Sprintf("Azure cloud type, currently supported ones are: %v", config.ValidEnvironments()))
+	acquireManagedIdentityId := acquireCommand.String("managed-identity-id", "", "uses user managed identities (accepts resource id or client id)")
+	acquireUseSystemManagedIdentity := acquireCommand.Bool("use-system-managed-identity", false, "uses system managed identity")
+	acquireCustomCloudConfigFile := acquireCommand.String("custom-cloudconfig-file", "", "passes a custom cloud configuration to the sdk for use with non-public azure clouds, only used for CUSTOMCLOUD environment")
 
 	// Renew subcommand flag pointers
-	renewSubscriptionIDPtr := renewCommand.String("subscriptionid", "", "Subscription where the Storage Account is located")
-	renewResourceGroupNamePtr := renewCommand.String("resourcegroupname", "", "Storage Account Resource Group Name")
-	renewAccountNamePtr := renewCommand.String("accountname", "", "Storage Account Name")
-	renewBlobContainerPtr := renewCommand.String("container", "", "Blob container name")
-	renewBlobNamePtr := renewCommand.String("blobname", config.BlobName(), "Blob name")
-	renewLeaseIDPtr := renewCommand.String("leaseid", "", "GUID value that represents the acquired lease")
-	renewIterationsPtr := renewCommand.Int("iterations", 20, "Lease renew, number of times it will repeat renew operation")
-	renewWaitTimeSecPtr := renewCommand.Int("waittimesec", 30, "Time in seconds between iterations to renew current lease, must be between 1 and 59 seconds, ideally half of the time used when acquiring lease")
-	renewEnvironmentPtr := renewCommand.String("environment", "AZUREPUBLICCLOUD", fmt.Sprintf("Azure cloud type, currently supported ones are: %v", config.ValidEnvironments()))
+	renewSubscriptionID := renewCommand.String("subscriptionid", "", "Subscription where the Storage Account is located")
+	renewResourceGroupName := renewCommand.String("resourcegroupname", "", "Storage Account Resource Group Name")
+	renewAccountName := renewCommand.String("accountname", "", "Storage Account Name")
+	renewBlobContainer := renewCommand.String("container", "", "Blob container name")
+	renewBlobName := renewCommand.String("blobname", config.BlobName(), "Blob name")
+	renewLeaseID := renewCommand.String("leaseid", "", "GUID value that represents the acquired lease")
+	renewIterations := renewCommand.Int("iterations", 20, "Lease renew, number of times it will repeat renew operation")
+	renewWaitTimeSec := renewCommand.Int("waittimesec", 30, "Time in seconds between iterations to renew current lease, must be between 1 and 59 seconds, ideally half of the time used when acquiring lease")
+	renewEnvironment := renewCommand.String("environment", "AZUREPUBLICCLOUD", fmt.Sprintf("Azure cloud type, currently supported ones are: %v", config.ValidEnvironments()))
+	renewManagedIdentityId := renewCommand.String("managed-identity-id", "", "uses user managed identities (accepts resource id or client id)")
+	renewUseSystemManagedIdentity := renewCommand.Bool("use-system-managed-identity", false, "uses system managed identity")
+	renewCustomCloudConfigFile := renewCommand.String("custom-cloudconfig-file", "", "passes a custom cloud configuration to the sdk for use with non-public azure clouds, only used for CUSTOMCLOUD environment")
 
 	flag.Parse()
 
 	if len(os.Args) < 2 {
 		utils.PrintHeader(fmt.Sprintf("azbloblease - CLI tool to help on leader elections based on Azure Blob Storage blob leasing process - v%v", config.Version()))
 
-		fmt.Println("")
-		fmt.Println("General usage")
-		fmt.Println("")
-		fmt.Println("\tazbloblease <command> <options>")
-		fmt.Println("")
-
-		fmt.Println("List of commands and their options")
-
-		fmt.Println("")
-		fmt.Println(fmt.Sprintf("%v - Creates a blob to be used for the lease process", createLeaseBlobCommand.Name()))
-		fmt.Println("")
-		createLeaseBlobCommand.PrintDefaults()
-		fmt.Println("")
-		fmt.Println("\tExample")
-		fmt.Println("\t\tazbloblease createleaseblob -accountname \"mystorageaccount\" -container \"azbloblease\" -blobname \"myblob\" -resourcegroupname \"my-rg\" -subscriptionid \"11111111-1111-1111-1111-111111111111\"")
-		fmt.Println("")
-		fmt.Println("\tOutputs")
-		fmt.Println("\t\tstdout - json response after createleaseblob process is executed")
-		fmt.Println("\t\tstderr - error messages")
-
-		fmt.Println("")
-		fmt.Println(fmt.Sprintf("%v - Acquires a lease", acquireCommand.Name()))
-		fmt.Println("")
-		acquireCommand.PrintDefaults()
-		fmt.Println("")
-		fmt.Println("\tExample")
-		fmt.Println("\t\tazbloblease acquire -accountname \"mystorageaccount\" -container \"azbloblease\" -blobname \"myblob\" -leaseduration 60 -resourcegroupname \"my-rg\" -subscriptionid \"11111111-1111-1111-1111-111111111111\"")
-		fmt.Println("")
-		fmt.Println("\tOutputs")
-		fmt.Println("\t\tstdout - json response after acquire process is executed")
-		fmt.Println("\t\tstderr - error messages")
-
-		fmt.Println("")
-		fmt.Println(fmt.Sprintf("%v - Renews a lease for # of iterations based on an interval between", renewCommand.Name()))
-		fmt.Println("")
-		renewCommand.PrintDefaults()
-		fmt.Println("")
-		fmt.Println("\tExample")
-		fmt.Println("\t\tazbloblease renew -accountname \"mystorageaccount\" -container \"azbloblease\" -blobname \"myblob\" -leaseid \"d3d63201-153b-453b-85ef-6c3bee3082f0\" -resourcegroupname \"my-rg\" -subscriptionid \"11111111-1111-1111-1111-111111111111\" -iterations 10 -waittimesec 30")
-		fmt.Println("")
-		fmt.Println("\tOutputs")
-		fmt.Println("\t\tstdout - json response after all renew iteration operations complete")
-		fmt.Println("\t\tstderr - diagnostic messages in every iteration and error messages")
-
-		fmt.Println("")
-		fmt.Println(fmt.Sprintf("%v - gets tool version", versionCommand.Name()))
-		fmt.Println("")
-		versionCommand.PrintDefaults()
-		fmt.Println("")
-		fmt.Println("\tExample")
-		fmt.Println("\t\tazbloblease version")
-		fmt.Println("")
-		fmt.Println("\tOutputs")
-		fmt.Println("\t\tstdout - tool version")
+		utils.PrintUsage(createLeaseBlobCommand, acquireCommand, renewCommand, versionCommand)
 
 		exitCode = config.ErrorCode("ErrInvalidArgument")
 		return
@@ -179,41 +137,45 @@ func main() {
 		return
 	}
 
-	// CreateLeaseBlob subcommnad execution
+	// Azure authentication
+	var cred azcore.TokenCredential
+	var err error
+
+	// CreateLeaseBlob subcommand execution
 	if createLeaseBlobCommand.Parsed() {
 
 		// Validations
-		if *createLeaseBlobSubscriptionIDPtr == "" {
+		if *createLeaseBlobSubscriptionID == "" {
 			fmt.Println(createLeaseBlobCommand.Name())
 			createLeaseBlobCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingSubscriptionID")
 			return
 		}
 
-		if *createLeaseBlobResourceGroupNamePtr == "" {
+		if *createLeaseBlobResourceGroupName == "" {
 			fmt.Println(createLeaseBlobCommand.Name())
 			createLeaseBlobCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingResourceGroupName")
 			return
 		}
 
-		if *createLeaseBlobAccountNamePtr == "" {
+		if *createLeaseBlobAccountName == "" {
 			fmt.Println(createLeaseBlobCommand.Name())
 			createLeaseBlobCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingAccountName")
 			return
 		}
 
-		if *createLeaseBlobBlobContainerPtr == "" {
+		if *createLeaseBlobBlobContainer == "" {
 			fmt.Println(createLeaseBlobCommand.Name())
 			createLeaseBlobCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingContainer")
 			return
 		}
 
-		if strings.ToUpper(*createLeaseBlobEnvironmentPtr) != "AZUREPUBLICCLOUD" {
+		if strings.ToUpper(*createLeaseBlobEnvironment) != "AZUREPUBLICCLOUD" {
 			// Checks if valid cloud environment was passed
-			_, found := utils.FindInSlice(config.ValidEnvironments(), strings.ToUpper(*createLeaseBlobEnvironmentPtr))
+			_, found := utils.FindInSlice(config.ValidEnvironments(), strings.ToUpper(*createLeaseBlobEnvironment))
 			if !found {
 				fmt.Println(createLeaseBlobCommand.Name())
 				createLeaseBlobCommand.PrintDefaults()
@@ -222,15 +184,49 @@ func main() {
 			}
 		}
 
+		if strings.ToUpper(*createLeaseBlobEnvironment) != "CUSTOMCLOUD" && *createLeaseBlobCustomCloudConfigFile != "" {
+			fmt.Println(createLeaseBlobCommand.Name())
+			createLeaseBlobCommand.PrintDefaults()
+			exitCode = config.ErrorCode("ErrCloudConfigFileOnlyForCustomCloud")
+			return
+		}
+
+		if strings.ToUpper(*createLeaseBlobEnvironment) == "CUSTOMCLOUD" && *createLeaseBlobCustomCloudConfigFile == "" {
+			fmt.Println(createLeaseBlobCommand.Name())
+			createLeaseBlobCommand.PrintDefaults()
+			exitCode = config.ErrorCode("ErrCloudConfigFileRequiredForCustomCloud")
+			return
+		}
+
+		if strings.ToUpper(*createLeaseBlobEnvironment) == "CUSTOMCLOUD" && *createLeaseBlobCustomCloudConfigFile != "" {
+			// Checks if custom cloud config file exists
+			if _, err := os.Stat(*createLeaseBlobCustomCloudConfigFile); os.IsNotExist(err) {
+				fmt.Println(createLeaseBlobCommand.Name())
+				createLeaseBlobCommand.PrintDefaults()
+				exitCode = config.ErrorCode("ErrCloudConfigFileNotFound")
+				return
+			}
+		}
+
+		// Azure authentication
+		cred, err = iam.GetTokenCredentials(*createLeaseBlobManagedIdentityId, *createLeaseBlobUseSystemManagedIdentity)
+		if err != nil {
+			utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining token credential: %v", err), config.Stderr())
+			exitCode = config.ErrorCode("ErrAuthentication")
+			return
+		}
+
 		// Run createLeaseBlob
 		createLeaseBlobResult := subcommands.CreateLeaseBlob(
 			cntx,
-			*createLeaseBlobSubscriptionIDPtr,
-			*createLeaseBlobResourceGroupNamePtr,
-			*createLeaseBlobAccountNamePtr,
-			strings.ToLower(*createLeaseBlobBlobContainerPtr),
-			*createLeaseBlobBlobBlobNamePtr,
-			strings.ToUpper(*createLeaseBlobEnvironmentPtr),
+			*createLeaseBlobSubscriptionID,
+			*createLeaseBlobResourceGroupName,
+			*createLeaseBlobAccountName,
+			strings.ToLower(*createLeaseBlobBlobContainer),
+			*createLeaseBlobBlobBlobName,
+			strings.ToUpper(*createLeaseBlobEnvironment),
+			*createLeaseBlobCustomCloudConfigFile,
+			cred,
 		)
 
 		// Outputs json result in stdout
@@ -241,62 +237,62 @@ func main() {
 		)
 	}
 
-	// Acquire subcommnad execution
+	// Acquire subcommand execution
 	if acquireCommand.Parsed() {
 
 		// Validations
-		if *acquireSubscriptionIDPtr == "" {
+		if *acquireSubscriptionID == "" {
 			fmt.Println(acquireCommand.Name())
 			acquireCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingSubscriptionID")
 			return
 		}
 
-		if *acquireResourceGroupNamePtr == "" {
+		if *acquireResourceGroupName == "" {
 			fmt.Println(acquireCommand.Name())
 			acquireCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingResourceGroupName")
 			return
 		}
 
-		if *acquireAccountNamePtr == "" {
+		if *acquireAccountName == "" {
 			fmt.Println(acquireCommand.Name())
 			acquireCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingAccountName")
 			return
 		}
 
-		if *acquireBlobContainerPtr == "" {
+		if *acquireBlobContainer == "" {
 			fmt.Println(acquireCommand.Name())
 			acquireCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingContainer")
 			return
 		}
 
-		if *acquireLeaseDurationPtr < 15 || *acquireLeaseDurationPtr > 60 {
+		if *acquireLeaseDuration < 15 || *acquireLeaseDuration > 60 {
 			fmt.Println(acquireCommand.Name())
 			acquireCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentInvalidLeaseDuration")
 			return
 		}
 
-		if *acquireRetriesPtr < 1 {
+		if *acquireRetries < 1 {
 			fmt.Println(acquireCommand.Name())
 			acquireCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentRetryCount")
 			return
 		}
 
-		if *acquireWaitTimeSecPtr < 0 || *acquireWaitTimeSecPtr > 59 {
+		if *acquireWaitTimeSec < 0 || *acquireWaitTimeSec > 59 {
 			fmt.Println(acquireCommand.Name())
 			acquireCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentWaitTimeAcquire")
 			return
 		}
 
-		if strings.ToUpper(*acquireEnvironmentPtr) != "AZUREPUBLICCLOUD" {
+		if strings.ToUpper(*acquireEnvironment) != "AZUREPUBLICCLOUD" {
 			// Checks if valid cloud environment was passed
-			_, found := utils.FindInSlice(config.ValidEnvironments(), strings.ToUpper(*acquireEnvironmentPtr))
+			_, found := utils.FindInSlice(config.ValidEnvironments(), strings.ToUpper(*acquireEnvironment))
 			if !found {
 				fmt.Println(acquireCommand.Name())
 				acquireCommand.PrintDefaults()
@@ -305,18 +301,52 @@ func main() {
 			}
 		}
 
+		if strings.ToUpper(*acquireEnvironment) != "CUSTOMCLOUD" && *acquireCustomCloudConfigFile != "" {
+			fmt.Println(acquireCommand.Name())
+			acquireCommand.PrintDefaults()
+			exitCode = config.ErrorCode("ErrCloudConfigFileOnlyForCustomCloud")
+			return
+		}
+
+		if strings.ToUpper(*acquireEnvironment) == "CUSTOMCLOUD" && *acquireCustomCloudConfigFile == "" {
+			fmt.Println(acquireCommand.Name())
+			acquireCommand.PrintDefaults()
+			exitCode = config.ErrorCode("ErrCloudConfigFileRequiredForCustomCloud")
+			return
+		}
+
+		if strings.ToUpper(*acquireEnvironment) == "CUSTOMCLOUD" && *acquireCustomCloudConfigFile != "" {
+			// Checks if custom cloud config file exists
+			if _, err := os.Stat(*acquireCustomCloudConfigFile); os.IsNotExist(err) {
+				fmt.Println(acquireCommand.Name())
+				acquireCommand.PrintDefaults()
+				exitCode = config.ErrorCode("ErrCloudConfigFileNotFound")
+				return
+			}
+		}
+
+		// Azure authentication
+		cred, err = iam.GetTokenCredentials(*acquireManagedIdentityId, *acquireUseSystemManagedIdentity)
+		if err != nil {
+			utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining token credential: %v", err), config.Stderr())
+			exitCode = config.ErrorCode("ErrAuthentication")
+			return
+		}
+
 		// Run acquire
 		acquireResult := subcommands.AcquireLease(
 			cntx,
-			*acquireSubscriptionIDPtr,
-			*acquireResourceGroupNamePtr,
-			*acquireAccountNamePtr,
-			strings.ToLower(*acquireBlobContainerPtr),
-			*acquireBlobNamePtr,
-			strings.ToUpper(*acquireEnvironmentPtr),
-			*acquireLeaseDurationPtr,
-			*acquireRetriesPtr,
-			*acquireWaitTimeSecPtr,
+			*acquireSubscriptionID,
+			*acquireResourceGroupName,
+			*acquireAccountName,
+			strings.ToLower(*acquireBlobContainer),
+			*acquireBlobName,
+			strings.ToUpper(*acquireEnvironment),
+			*acquireCustomCloudConfigFile,
+			*acquireLeaseDuration,
+			*acquireRetries,
+			*acquireWaitTimeSec,
+			cred,
 		)
 
 		// Outputs json result in stdout
@@ -327,62 +357,62 @@ func main() {
 		)
 	}
 
-	// Renew subcommnad execution
+	// Renew subcommand execution
 	if renewCommand.Parsed() {
 
 		// Validations
-		if *renewSubscriptionIDPtr == "" {
+		if *renewSubscriptionID == "" {
 			fmt.Println(renewCommand.Name())
 			renewCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingSubscriptionID")
 			return
 		}
 
-		if *renewResourceGroupNamePtr == "" {
+		if *renewResourceGroupName == "" {
 			fmt.Println(renewCommand.Name())
 			renewCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingResourceGroupName")
 			return
 		}
 
-		if *renewAccountNamePtr == "" {
+		if *renewAccountName == "" {
 			fmt.Println(renewCommand.Name())
 			renewCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingAccountName")
 			return
 		}
 
-		if *renewBlobContainerPtr == "" {
+		if *renewBlobContainer == "" {
 			fmt.Println(renewCommand.Name())
 			renewCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingContainer")
 			return
 		}
 
-		if *renewLeaseIDPtr == "" {
+		if *renewLeaseID == "" {
 			fmt.Println(renewCommand.Name())
 			renewCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentMissingLeaseID")
 			return
 		}
 
-		if *renewIterationsPtr < 1 {
+		if *renewIterations < 1 {
 			fmt.Println(renewCommand.Name())
 			renewCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentIterationsCount")
 			return
 		}
 
-		if *renewWaitTimeSecPtr < 1 || *renewWaitTimeSecPtr > 59 {
+		if *renewWaitTimeSec < 1 || *renewWaitTimeSec > 59 {
 			fmt.Println(renewCommand.Name())
 			renewCommand.PrintDefaults()
 			exitCode = config.ErrorCode("ErrInvalidArgumentWaitTime")
 			return
 		}
 
-		if strings.ToUpper(*renewEnvironmentPtr) != "AZUREPUBLICCLOUD" {
+		if strings.ToUpper(*renewEnvironment) != "AZUREPUBLICCLOUD" {
 			// Checks if valid cloud environment was passed
-			_, found := utils.FindInSlice(config.ValidEnvironments(), strings.ToUpper(*renewEnvironmentPtr))
+			_, found := utils.FindInSlice(config.ValidEnvironments(), strings.ToUpper(*renewEnvironment))
 			if !found {
 				fmt.Println(renewCommand.Name())
 				renewCommand.PrintDefaults()
@@ -391,18 +421,52 @@ func main() {
 			}
 		}
 
+		if strings.ToUpper(*renewEnvironment) != "CUSTOMCLOUD" && *renewCustomCloudConfigFile != "" {
+			fmt.Println(renewCommand.Name())
+			renewCommand.PrintDefaults()
+			exitCode = config.ErrorCode("ErrCloudConfigFileOnlyForCustomCloud")
+			return
+		}
+
+		if strings.ToUpper(*renewEnvironment) == "CUSTOMCLOUD" && *renewCustomCloudConfigFile == "" {
+			fmt.Println(renewCommand.Name())
+			renewCommand.PrintDefaults()
+			exitCode = config.ErrorCode("ErrCloudConfigFileRequiredForCustomCloud")
+			return
+		}
+
+		if strings.ToUpper(*renewEnvironment) == "CUSTOMCLOUD" && *renewCustomCloudConfigFile != "" {
+			// Checks if custom cloud config file exists
+			if _, err := os.Stat(*renewCustomCloudConfigFile); os.IsNotExist(err) {
+				fmt.Println(renewCommand.Name())
+				renewCommand.PrintDefaults()
+				exitCode = config.ErrorCode("ErrCloudConfigFileNotFound")
+				return
+			}
+		}
+
+		// Azure authentication
+		cred, err = iam.GetTokenCredentials(*renewManagedIdentityId, *renewUseSystemManagedIdentity)
+		if err != nil {
+			utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining token credential: %v", err), config.Stderr())
+			exitCode = config.ErrorCode("ErrAuthentication")
+			return
+		}
+
 		// Run renew
 		renewResult := subcommands.RenewLease(
 			cntx,
-			*renewSubscriptionIDPtr,
-			*renewResourceGroupNamePtr,
-			*renewAccountNamePtr,
-			strings.ToLower(*renewBlobContainerPtr),
-			*renewBlobNamePtr,
-			*renewLeaseIDPtr,
-			strings.ToUpper(*renewEnvironmentPtr),
-			*renewIterationsPtr,
-			*renewWaitTimeSecPtr,
+			*renewSubscriptionID,
+			*renewResourceGroupName,
+			*renewAccountName,
+			strings.ToLower(*renewBlobContainer),
+			*renewBlobName,
+			*renewLeaseID,
+			strings.ToUpper(*renewEnvironment),
+			*renewCustomCloudConfigFile,
+			*renewIterations,
+			*renewWaitTimeSec,
+			cred,
 		)
 
 		// Outputs result into stdout

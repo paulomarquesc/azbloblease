@@ -12,21 +12,43 @@ package iam
 
 import (
 	"fmt"
+	"strings"
 
-	"github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/go-autorest/autorest/azure/auth"
-	"github.com/paulomarquesc/azbloblease/azbloblease/internal/config"
-	"github.com/paulomarquesc/azbloblease/azbloblease/internal/utils"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 )
 
-// GetAuthorizer gets an authorization token
-func GetAuthorizer() (autorest.Authorizer, error) {
+func GetTokenCredentials(managedIdentityId string, useSystemManagedIdentity bool) (azcore.TokenCredential, error) {
+	var cred azcore.TokenCredential
+	var err error
 
-	authorizer, err := auth.NewAuthorizerFromEnvironment()
-	if err != nil {
-		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining authorizer: %v.", err), config.Stderr())
-		return nil, err
+	if managedIdentityId == "" && !useSystemManagedIdentity {
+		cred, err = azidentity.NewDefaultAzureCredential(nil)
+	} else if useSystemManagedIdentity {
+		fmt.Println("Using NewManagedIdentityCredential")
+		cred, err = azidentity.NewManagedIdentityCredential(nil)
+	} else if managedIdentityId != "" {
+		fmt.Println("Using NewManagedIdentityCredential for user assigned managed identity")
+		opts := azidentity.ManagedIdentityCredentialOptions{}
+
+		if strings.Contains(managedIdentityId, "/") {
+			opts = azidentity.ManagedIdentityCredentialOptions{
+				ID: azidentity.ResourceID(managedIdentityId),
+			}
+		} else {
+			opts = azidentity.ManagedIdentityCredentialOptions{
+				ID: azidentity.ClientID(managedIdentityId),
+			}
+		}
+
+		cred, err = azidentity.NewManagedIdentityCredential(&opts)
+	} else {
+		return nil, fmt.Errorf("authentication method not supported")
 	}
 
-	return authorizer, nil
+	if err != nil {
+		return nil, fmt.Errorf("an error ocurred: %v", err)
+	}
+
+	return cred, nil
 }
