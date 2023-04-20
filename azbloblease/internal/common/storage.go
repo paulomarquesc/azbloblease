@@ -131,6 +131,10 @@ func GetBlobClient(cntx context.Context, relativePath, accountName, resourceGrou
 		GetAccountBlobEndpoint(cntx, &storageAccountClient, resourceGroupName, accountName),
 	)
 
+	if err != nil {
+		return result, fmt.Errorf("an error ocurred while obtaining blob endpoint url: %v", err)
+	}
+
 	// Getting specific blob client
 	var url string = ""
 	if relativePath == "" {
