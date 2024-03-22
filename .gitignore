@@ -355,4 +355,5 @@ MigrationBackup/
 .vscode
 
 # 
-azbloblease/azbloblease/azbloblease.*
+azbloblease/azbloblease*
+!azbloblease/azbloblease.go
