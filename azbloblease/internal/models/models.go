@@ -34,7 +34,6 @@ type CloudConfigInfo struct {
 
 // AzBlobClient object definition
 type AzBlobClient struct {
-	Client              *azblob.Client
-	URL                 string
-	SharedKeyCredential azblob.SharedKeyCredential
+	Client *azblob.Client
+	URL    string
 }
