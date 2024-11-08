@@ -12,7 +12,7 @@ import (
 
 // Constants
 const (
-	version              = "2.0.1"
+	version              = "2.0.2"
 	blobName             = "azblobleaseblob"
 	success              = "Success"
 	fail                 = "Fail"

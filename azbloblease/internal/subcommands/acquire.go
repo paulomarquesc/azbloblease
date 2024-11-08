@@ -34,7 +34,7 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 		Status:             to.StringPtr(config.Fail()),
 	}
 
-	// Getting storage client and keys
+	// Getting storage client
 	storageAccountClient, err := common.GetStorageClient(subscriptionID, environment, cloudConfigFile, cred)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while getting storage account client: %v.", err), config.Stderr())
@@ -42,15 +42,8 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 		return response
 	}
 
-	accountKeys, err := common.GetStorageAccountKey(cntx, storageAccountClient, resourceGroupName, accountName)
-	if err != nil {
-		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while getting storage account keys: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
-		return response
-	}
-
 	// Getting blob client
-	azBlobClient, err := common.GetBlobClient(cntx, "", accountName, resourceGroupName, *accountKeys.Keys[0].Value, storageAccountClient, cred)
+	azBlobClient, err := common.GetBlobClient(cntx, storageAccountClient, accountName, resourceGroupName, cred)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining az blob client: %v", err), config.Stderr())
 		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
@@ -60,7 +53,7 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 	blobRelativePath := fmt.Sprintf("%v/%v", container, blobName)
 	blobURL := fmt.Sprintf("%v%v", azBlobClient.URL, blobRelativePath)
 
-	blockBlobClient, err := blockblob.NewClientWithSharedKeyCredential(blobURL, &azBlobClient.SharedKeyCredential, nil)
+	blockBlobClient, err := blockblob.NewClient(blobURL, cred, nil)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error occurred trying to create blob client for blob %v, error: %v", blobURL, err), config.Stderr())
 		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))

@@ -110,20 +110,8 @@ func GetStorageClient(subscriptionID, environment, cloudConfigFile string, cred 
 	return *storageClientFactory.NewAccountsClient(), nil
 }
 
-// GetStorageAccountKey gets storage account keys
-func GetStorageAccountKey(cntx context.Context, storageAccountClient armstorage.AccountsClient, resourceGroupName, accountName string) (armstorage.AccountsClientListKeysResponse, error) {
-
-	accountKeys, err := storageAccountClient.ListKeys(cntx, resourceGroupName, accountName, nil)
-	if err != nil {
-		return armstorage.AccountsClientListKeysResponse{}, fmt.Errorf("an error ocurred while getting storage account keys: %v", err)
-	}
-
-	return accountKeys, nil
-}
-
 // GetBlobClient gets a blob client
-func GetBlobClient(cntx context.Context, relativePath, accountName, resourceGroupName, key string, storageAccountClient armstorage.AccountsClient, cred azcore.TokenCredential) (models.AzBlobClient, error) {
-
+func GetBlobClient(cntx context.Context, storageAccountClient armstorage.AccountsClient, accountName, resourceGroupName string, cred azcore.TokenCredential) (models.AzBlobClient, error) {
 	result := models.AzBlobClient{}
 
 	// Getting blob endpoint
@@ -135,25 +123,13 @@ func GetBlobClient(cntx context.Context, relativePath, accountName, resourceGrou
 		return result, fmt.Errorf("an error ocurred while obtaining blob endpoint url: %v", err)
 	}
 
-	// Getting specific blob client
-	var url string = ""
-	if relativePath == "" {
-		url = blobEndppointURL.String()
-	} else {
-		url = fmt.Sprintf("%v%v", blobEndppointURL.String(), relativePath)
-	}
-
-	// Create a credential object; this is used to access account while using azblob module.
-	credential, err := azblob.NewSharedKeyCredential(accountName, key)
-	if err != nil {
-		return result, fmt.Errorf("an error ocurred while obtaining azblob credential: %v", err)
-	}
+	url := blobEndppointURL.String()
 
 	// Getting a blob client to be used in container operations
-	blobClient, err := azblob.NewClientWithSharedKeyCredential(url, credential, nil)
+	blobClient, err := azblob.NewClient(url, cred, nil)
 	if err != nil {
 		return result, fmt.Errorf("an error ocurred while obtaining az blob client: %v", err)
 	}
 
-	return models.AzBlobClient{Client: blobClient, URL: url, SharedKeyCredential: *credential}, nil
+	return models.AzBlobClient{Client: blobClient, URL: url}, nil
 }
