@@ -2,11 +2,22 @@
 
 **In this document**
 
+* [2.0.3](#2.0.3)
 * [2.0.2](#2.0.2)
 * [2.0.0](#2.0.0)
 * [1.0.2](#1.0.2)
 * [1.0.1](#1.0.1)
 * [1.0.0](#1.0.0)
+
+## 2.0.3 (2025-03-15)<a name="2.0.3"></a>
+*Features*
+* Packages updates only
+
+*Bug Fixes*
+* N/A
+
+*Breaking Changes*
+* N/A
 
 ## 2.0.2 (2024-11-08)<a name="2.0.2"></a>
 *Features*
