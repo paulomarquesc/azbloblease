@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blockblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/lease"
-	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/common"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/config"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/models"
@@ -30,14 +30,14 @@ func RenewLease(cntx context.Context, subscriptionID, resourceGroupName, account
 		StorageAccountName: &accountName,
 		ContainerName:      &container,
 		BlobName:           &blobName,
-		Status:             to.StringPtr(config.Fail()),
+		Status:             to.Ptr(config.Fail()),
 	}
 
 	// Getting storage client
 	storageAccountClient, err := common.GetStorageClient(subscriptionID, environment, cloudConfigFile, cred)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while getting storage account client: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+		response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -45,7 +45,7 @@ func RenewLease(cntx context.Context, subscriptionID, resourceGroupName, account
 	azBlobClient, err := common.GetBlobClient(cntx, storageAccountClient, accountName, resourceGroupName, cred)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining az blob client: %v", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+		response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -55,14 +55,14 @@ func RenewLease(cntx context.Context, subscriptionID, resourceGroupName, account
 	blockBlobClient, err := blockblob.NewClient(blobURL, cred, nil)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error occurred trying to create blob client for blob %v, error: %v", blobURL, err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+		response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
 	_, err = blockBlobClient.GetProperties(cntx, nil)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error occurred trying to get blob %v, error: %v", blobURL, err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+		response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -76,7 +76,7 @@ func RenewLease(cntx context.Context, subscriptionID, resourceGroupName, account
 
 		if err != nil {
 			utils.ConsoleOutput(fmt.Sprintf("an error ocurred while acquiring lease client: %v", err), config.Stderr())
-			response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+			response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 		} else {
 
 			// Renew lease
@@ -87,7 +87,7 @@ func RenewLease(cntx context.Context, subscriptionID, resourceGroupName, account
 
 			if err != nil {
 				utils.ConsoleOutput(fmt.Sprintf("an error ocurred while renewing lease: %v.", err), config.Stderr())
-				response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+				response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 				return response
 			}
 
@@ -99,6 +99,6 @@ func RenewLease(cntx context.Context, subscriptionID, resourceGroupName, account
 		time.Sleep(time.Duration(waittimesec) * time.Second)
 	}
 
-	response.Status = to.StringPtr(config.SuccessOnRenew())
+	response.Status = to.Ptr(config.SuccessOnRenew())
 	return response
 }

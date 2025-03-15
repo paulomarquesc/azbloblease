@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blockblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/lease"
-	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/google/uuid"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/common"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/config"
@@ -31,14 +31,14 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 		StorageAccountName: &accountName,
 		ContainerName:      &container,
 		BlobName:           &blobName,
-		Status:             to.StringPtr(config.Fail()),
+		Status:             to.Ptr(config.Fail()),
 	}
 
 	// Getting storage client
 	storageAccountClient, err := common.GetStorageClient(subscriptionID, environment, cloudConfigFile, cred)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while getting storage account client: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+		response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -46,7 +46,7 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 	azBlobClient, err := common.GetBlobClient(cntx, storageAccountClient, accountName, resourceGroupName, cred)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining az blob client: %v", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+		response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -56,14 +56,14 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 	blockBlobClient, err := blockblob.NewClient(blobURL, cred, nil)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error occurred trying to create blob client for blob %v, error: %v", blobURL, err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+		response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
 	_, err = blockBlobClient.GetProperties(cntx, nil)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error occurred trying to get blob %v, error: %v", blobURL, err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+		response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -80,7 +80,7 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 
 		if err != nil {
 			utils.ConsoleOutput(fmt.Sprintf("an error ocurred while acquiring lease client: %v", err), config.Stderr())
-			response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+			response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 		} else {
 
 			// Acquiring lease
@@ -92,7 +92,7 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 
 			if err != nil {
 				utils.ConsoleOutput(fmt.Sprintf("an error ocurred while acquiring lease: %v.", err), config.Stderr())
-				response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+				response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 			} else {
 				response.ErrorMessage = nil
 				break
@@ -104,8 +104,8 @@ func AcquireLease(cntx context.Context, subscriptionID, resourceGroupName, accou
 	}
 
 	if response.ErrorMessage == nil {
-		response.Status = to.StringPtr(config.Success())
-		response.LeaseID = to.StringPtr(proposedLeaseID)
+		response.Status = to.Ptr(config.Success())
+		response.LeaseID = to.Ptr(proposedLeaseID)
 	}
 
 	return response
