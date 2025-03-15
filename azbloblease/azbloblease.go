@@ -30,7 +30,7 @@ import (
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
-	"github.com/Azure/go-autorest/autorest/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/config"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/iam"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/subcommands"
@@ -230,7 +230,7 @@ func main() {
 		)
 
 		// Outputs json result in stdout
-		createLeaseBlobResult.Operation = to.StringPtr(createLeaseBlobCommand.Name())
+		createLeaseBlobResult.Operation = to.Ptr(createLeaseBlobCommand.Name())
 		utils.ConsoleOutput(
 			utils.BuildResultResponse(createLeaseBlobResult),
 			config.StdoutJSON(),
@@ -350,7 +350,7 @@ func main() {
 		)
 
 		// Outputs json result in stdout
-		acquireResult.Operation = to.StringPtr(acquireCommand.Name())
+		acquireResult.Operation = to.Ptr(acquireCommand.Name())
 		utils.ConsoleOutput(
 			utils.BuildResultResponse(acquireResult),
 			config.StdoutJSON(),
@@ -470,7 +470,7 @@ func main() {
 		)
 
 		// Outputs result into stdout
-		renewResult.Operation = to.StringPtr(renewCommand.Name())
+		renewResult.Operation = to.Ptr(renewCommand.Name())
 		utils.ConsoleOutput(
 			utils.BuildResultResponse(renewResult),
 			config.StdoutJSON(),

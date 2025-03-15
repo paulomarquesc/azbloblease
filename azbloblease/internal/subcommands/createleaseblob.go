@@ -13,9 +13,9 @@ import (
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blockblob"
-	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/common"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/config"
 	"github.com/paulomarquesc/azbloblease/azbloblease/internal/models"
@@ -31,14 +31,14 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 		StorageAccountName: &accountName,
 		ContainerName:      &container,
 		BlobName:           &blobName,
-		Status:             to.StringPtr(config.Fail()),
+		Status:             to.Ptr(config.Fail()),
 	}
 
 	// Getting storage client
 	storageAccountClient, err := common.GetStorageClient(subscriptionID, environment, cloudConfigFile, cred)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while getting storage account client: %v.", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+		response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -46,7 +46,7 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 	azBlobClient, err := common.GetBlobClient(cntx, storageAccountClient, accountName, resourceGroupName, cred)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error ocurred while obtaining az blob client: %v", err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+		response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -57,7 +57,7 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 	if err != nil {
 		if !strings.Contains(err.Error(), "ContainerNotFound") {
 			utils.ConsoleOutput(fmt.Sprintf("an error occurred while checking if container %v exists: %v", container, err), config.Stderr())
-			response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+			response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 			return response
 		}
 
@@ -65,7 +65,7 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 		_, err = containerClient.Create(cntx, &azblob.CreateContainerOptions{})
 		if err != nil {
 			utils.ConsoleOutput(fmt.Sprintf("an error occurred trying to create container %v: %v", container, err), config.Stderr())
-			response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+			response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 			return response
 		}
 	}
@@ -76,13 +76,13 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 	blockBlobClient, err := blockblob.NewClient(blobURL, cred, nil)
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error occurred trying to create blob client for blob %v, error: %v", blobURL, err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+		response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
 	if err != nil {
 		utils.ConsoleOutput(fmt.Sprintf("an error occurred trying to create blob client for blob %v, error: %v", blobURL, err), config.Stderr())
-		response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+		response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 		return response
 	}
 
@@ -90,7 +90,7 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 	if err != nil {
 		if !strings.Contains(err.Error(), "BlobNotFound") {
 			utils.ConsoleOutput(fmt.Sprintf("an error occurred while checking if blob %v exists: %v", blobName, err), config.Stderr())
-			response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+			response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 			return response
 		}
 
@@ -104,13 +104,13 @@ func CreateLeaseBlob(cntx context.Context, subscriptionID, resourceGroupName, ac
 		_, err = blockBlobClient.UploadStream(cntx, bytes.NewReader(data), &blockblob.UploadStreamOptions{})
 		if err != nil {
 			utils.ConsoleOutput(fmt.Sprintf("an error occurred while uploading blob stream: %v", err), config.Stderr())
-			response.ErrorMessage = to.StringPtr(strings.Replace(err.Error(), "\"", "", -1))
+			response.ErrorMessage = to.Ptr(strings.Replace(err.Error(), "\"", "", -1))
 			return response
 		}
-		response.Status = to.StringPtr(config.Success())
+		response.Status = to.Ptr(config.Success())
 		return response
 	}
 
-	response.Status = to.StringPtr(config.SuccessAlreadyExists())
+	response.Status = to.Ptr(config.SuccessAlreadyExists())
 	return response
 }
